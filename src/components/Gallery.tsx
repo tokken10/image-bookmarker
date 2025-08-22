@@ -56,7 +56,9 @@ export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) 
             <div
               key={bookmark.id}
               onClick={() => onImageClick(index)}
+
               className="group relative aspect-[4/3] rounded-lg overflow-hidden shadow-md hover:shadow-lg cursor-pointer bg-gray-100 dark:bg-gray-800 transition-all duration-200 hover:scale-105 hover:z-10"
+
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
@@ -71,6 +73,7 @@ export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) 
                   src={bookmark.url}
                   alt={bookmark.title || 'Bookmarked image'}
                   className="w-full h-full object-cover"
+
                   loading="lazy"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
