@@ -59,7 +59,7 @@ export default function Lightbox({
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute -top-10 right-0 text-white hover:text-gray-300 focus:outline-none"
+          className="absolute -top-10 right-0 p-2 bg-black/50 text-white hover:bg-black/70 hover:text-gray-300 focus:outline-none rounded"
           aria-label="Close"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -69,11 +69,17 @@ export default function Lightbox({
 
         {/* Image container */}
         <div className="flex-1 flex items-center justify-center overflow-hidden">
-          <img
-            src={currentBookmark.url}
-            alt={currentBookmark.title || 'Bookmarked image'}
-            className="max-w-full max-h-[70vh] object-contain"
-          />
+          <a
+            href={currentBookmark.url}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src={currentBookmark.url}
+              alt={currentBookmark.title || 'Bookmarked image'}
+              className="max-w-full max-h-[70vh] object-contain cursor-zoom-in"
+            />
+          </a>
         </div>
 
         {/* Navigation buttons */}
@@ -82,7 +88,7 @@ export default function Lightbox({
             e.stopPropagation();
             onPrev();
           }}
-          className="absolute left-0 top-1/2 -translate-y-1/2 p-4 text-white hover:bg-black/30 rounded-r-lg transition-colors"
+          className="absolute left-0 top-1/2 -translate-y-1/2 p-4 bg-black/50 text-white hover:bg-black/70 rounded-r-lg transition-colors"
           disabled={currentIndex === 0}
           aria-label="Previous image"
         >
@@ -96,7 +102,7 @@ export default function Lightbox({
             e.stopPropagation();
             onNext();
           }}
-          className="absolute right-0 top-1/2 -translate-y-1/2 p-4 text-white hover:bg-black/30 rounded-l-lg transition-colors"
+          className="absolute right-0 top-1/2 -translate-y-1/2 p-4 bg-black/50 text-white hover:bg-black/70 rounded-l-lg transition-colors"
           disabled={currentIndex === bookmarks.length - 1}
           aria-label="Next image"
         >
