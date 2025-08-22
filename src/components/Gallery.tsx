@@ -11,6 +11,7 @@ interface GalleryProps {
 export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) {
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [infoVisibleId, setInfoVisibleId] = useState<string | null>(null);
 
   useEffect(() => {
     const savedBookmarks = loadBookmarks();
@@ -52,7 +53,7 @@ export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) 
           <div
             key={bookmark.id}
             onClick={() => onImageClick(index)}
-            className="group relative aspect-[4/3] rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer bg-gray-100 dark:bg-gray-800"
+            className="group relative aspect-[4/3] rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-transform duration-200 cursor-pointer bg-gray-100 dark:bg-gray-800 hover:z-10 hover:scale-105"
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
@@ -75,16 +76,33 @@ export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) 
                 }}
               />
               
-              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 flex items-end p-2">
-                <div className="w-full p-2 bg-gradient-to-t from-black/80 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity">
+              <div
+                className={`absolute inset-0 bg-black/60 flex items-end p-2 transition-opacity duration-200 z-10 ${infoVisibleId === bookmark.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="w-full p-2 bg-gradient-to-t from-black/80 to-transparent text-white">
                   <h3 className="font-medium truncate">{bookmark.title || 'Untitled'}</h3>
                   <p className="text-xs opacity-80">{formatDate(bookmark.createdAt)}</p>
                 </div>
               </div>
-              
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setInfoVisibleId(prev => (prev === bookmark.id ? null : bookmark.id));
+                }}
+                className="absolute bottom-2 left-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                aria-label="Show info"
+                title="Show info"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
+                </svg>
+              </button>
+
               <button
                 onClick={(e) => handleRemove(e, bookmark.id)}
-                className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-opacity"
+                className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-opacity z-20"
                 aria-label="Remove bookmark"
                 title="Remove bookmark"
               >
