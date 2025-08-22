@@ -43,6 +43,7 @@ export default function InputBar({ onAddBookmark }: InputBarProps) {
       setTitle('');
       onAddBookmark();
     } catch (err) {
+      console.error('Failed to load image:', err);
       setError('Failed to load image. Please check the URL and try again.');
     } finally {
       setIsSubmitting(false);
