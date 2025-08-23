@@ -57,9 +57,10 @@ export default function App() {
       <Header />
       <main className="py-8">
         <InputBar onAddBookmark={handleAddBookmark} />
-        <Gallery 
-          onImageClick={handleImageClick} 
-          refreshTrigger={refreshTrigger} 
+        <Gallery
+          onImageClick={handleImageClick}
+          refreshTrigger={refreshTrigger}
+          onAddBookmark={handleAddBookmark}
         />
       </main>
 
