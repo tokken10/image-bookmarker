@@ -1,4 +1,5 @@
-import { useState, ChangeEvent } from 'react';
+import { useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { isValidImageUrl } from '../utils/validation';
 import { addBookmark } from '../lib/storage';
 
@@ -26,7 +27,7 @@ export default function InputBar({ onAddBookmark }: InputBarProps) {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
     if (!url.trim()) {
