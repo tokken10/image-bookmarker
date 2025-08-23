@@ -91,7 +91,7 @@ export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) 
                   e.stopPropagation();
                   setInfoVisibleId(prev => (prev === bookmark.id ? null : bookmark.id));
                 }}
-                className="absolute bottom-2 left-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                className="absolute bottom-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20"
                 aria-label="Show info"
                 title="Show info"
               >
@@ -102,7 +102,7 @@ export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) 
 
               <button
                 onClick={(e) => handleRemove(e, bookmark.id)}
-                className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-red-600 transition-opacity z-20"
+                className={`absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full transition-opacity z-20 hover:bg-red-600 ${infoVisibleId === bookmark.id ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
                 aria-label="Remove bookmark"
                 title="Remove bookmark"
               >
