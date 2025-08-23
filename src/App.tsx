@@ -11,6 +11,7 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Load bookmarks on initial render
   useEffect(() => {
@@ -54,13 +55,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-      <Header />
+      <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
       <main className="py-8">
         <InputBar onAddBookmark={handleAddBookmark} />
         <Gallery
           onImageClick={handleImageClick}
           refreshTrigger={refreshTrigger}
           onAddBookmark={handleAddBookmark}
+          searchQuery={searchQuery}
         />
       </main>
 
