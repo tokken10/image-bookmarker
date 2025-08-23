@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import type { ImageBookmark } from '../types';
-import { loadBookmarks, removeBookmark } from '../lib/storage';
-import { formatDate } from '../utils/validation';
+import { addBookmark, loadBookmarks, removeBookmark } from '../lib/storage';
+import { formatDate, isValidImageUrl } from '../utils/validation';
 
 interface GalleryProps {
   onImageClick: (index: number) => void;
   refreshTrigger: number;
+  onAddBookmark: () => void;
 }
 
-export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) {
+export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark }: GalleryProps) {
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [infoVisibleId, setInfoVisibleId] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     const savedBookmarks = loadBookmarks();
@@ -27,6 +29,51 @@ export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) 
     }
   };
 
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+  };
+
+  const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const droppedUrl = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    const newItems: ImageBookmark[] = [];
+
+    if (droppedUrl && isValidImageUrl(droppedUrl)) {
+      const bookmark = addBookmark({ url: droppedUrl });
+      newItems.push(bookmark);
+    }
+
+    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+    for (const file of files) {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(file);
+      });
+      const bookmark = addBookmark({ url: dataUrl, title: file.name });
+      newItems.push(bookmark);
+    }
+
+    if (newItems.length > 0) {
+      setBookmarks(prev => [...newItems, ...prev]);
+      onAddBookmark();
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -35,26 +82,35 @@ export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) 
     );
   }
 
-  if (bookmarks.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">No bookmarks yet</h3>
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Add an image URL to get started!
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {bookmarks.map((bookmark, index) => (
-          <div
-            key={bookmark.id}
-            onClick={() => onImageClick(index)}
-            className="group relative aspect-[4/3] rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-transform duration-200 cursor-pointer bg-gray-100 dark:bg-gray-800 hover:z-10 hover:scale-105"
-            role="button"
+    <div
+      className="relative container mx-auto px-4 py-8"
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 border-4 border-dashed border-blue-500 flex items-center justify-center text-gray-700 dark:text-gray-300 z-20">
+          Drop images here
+        </div>
+      )}
+
+      {bookmarks.length === 0 ? (
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">No bookmarks yet</h3>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            Add an image URL or drag and drop an image to get started!
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {bookmarks.map((bookmark, index) => (
+            <div
+              key={bookmark.id}
+              onClick={() => onImageClick(index)}
+              className="group relative aspect-[4/3] rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-transform duration-200 cursor-pointer bg-gray-100 dark:bg-gray-800 hover:z-10 hover:scale-105"
+              role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -112,8 +168,9 @@ export default function Gallery({ onImageClick, refreshTrigger }: GalleryProps) 
               </button>
             </div>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
