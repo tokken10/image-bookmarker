@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, ChangeEvent } from 'react';
 import { isValidImageUrl } from '../utils/validation';
 import { addBookmark } from '../lib/storage';
 
@@ -11,6 +11,20 @@ export default function InputBar({ onAddBookmark }: InputBarProps) {
   const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState('');
+
+  const handleUrlChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setUrl(value);
+    setPreviewError('');
+
+    if (isValidImageUrl(value)) {
+      setPreviewUrl(value);
+    } else {
+      setPreviewUrl(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +55,8 @@ export default function InputBar({ onAddBookmark }: InputBarProps) {
       addBookmark({ url, title: title.trim() || undefined });
       setUrl('');
       setTitle('');
+      setPreviewUrl(null);
+      setPreviewError('');
       onAddBookmark();
     } catch (err) {
       console.error('Failed to load image:', err);
@@ -61,7 +77,7 @@ export default function InputBar({ onAddBookmark }: InputBarProps) {
             id="image-url"
             type="url"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={handleUrlChange}
             placeholder="https://example.com/image.jpg"
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             disabled={isSubmitting}
@@ -102,6 +118,35 @@ export default function InputBar({ onAddBookmark }: InputBarProps) {
           {isSubmitting ? 'Adding...' : 'Add Bookmark'}
         </button>
       </form>
+
+      {previewError && (
+        <p className="text-red-500 text-sm mt-1">{previewError}</p>
+      )}
+
+      {previewUrl && (
+        <div className="mt-4">
+          <img
+            src={previewUrl}
+            alt={title ? `Preview of ${title}` : 'Image preview'}
+            className="max-h-48 object-contain"
+            onLoad={() => setPreviewError('')}
+            onError={() => {
+              setPreviewError('Failed to load preview');
+              setPreviewUrl(null);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setPreviewUrl(null);
+              setPreviewError('');
+            }}
+            className="mt-2 text-sm text-blue-600 hover:underline"
+          >
+            Clear preview
+          </button>
+        </div>
+      )}
     </div>
   );
 }

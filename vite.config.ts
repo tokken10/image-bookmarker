@@ -23,4 +23,8 @@ export default defineConfig({
     assetsDir: 'assets',
     sourcemap: true,
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: './vitest.setup.ts',
+  },
 });
