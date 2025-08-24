@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
-import type { ImageBookmark } from '../types';
+import type { ImageBookmark, Topic } from '../types';
 import { formatDate } from '../utils/validation';
-import { updateBookmark } from '../lib/storage';
+import { updateImage, addTopic, updateImageTopics } from '../lib/storage';
 
 interface LightboxProps {
   bookmarks: ImageBookmark[];
+  topics: Topic[];
   currentIndex: number;
   onClose: () => void;
   onNext: () => void;
@@ -14,6 +15,7 @@ interface LightboxProps {
 
 export default function Lightbox({
   bookmarks,
+  topics,
   currentIndex,
   onClose,
   onNext,
@@ -46,19 +48,28 @@ export default function Lightbox({
   if (!currentBookmark) return null;
 
   const handleEdit = () => {
-    const newTitle = window.prompt(
-      'Enter a title for this image',
-      currentBookmark.title || ''
-    );
+    const newTitle = window.prompt('Enter a title for this image', currentBookmark.title || '');
     if (newTitle === null) return;
-
     const trimmed = newTitle.trim();
-    const updated = updateBookmark(currentBookmark.id, {
-      title: trimmed || undefined,
-    });
+    const updated = updateImage(currentBookmark.id, { title: trimmed || undefined });
     if (updated) {
       onUpdateBookmark(updated);
     }
+  };
+
+  const handleEditTopics = () => {
+    const currentNames = currentBookmark.topics
+      .map(slug => topics.find(t => t.slug === slug)?.name || slug)
+      .join(', ');
+    const input = window.prompt('Edit topics (comma separated)', currentNames);
+    if (input === null) return;
+    const names = input
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    const slugs = names.map(n => addTopic(n).slug);
+    updateImageTopics(currentBookmark.id, slugs);
+    onUpdateBookmark({ ...currentBookmark, topics: slugs });
   };
 
   return (
@@ -153,6 +164,12 @@ export default function Lightbox({
             className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
           >
             Edit title
+          </button>
+          <button
+            onClick={handleEditTopics}
+            className="mt-2 ml-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+          >
+            Edit topics
           </button>
         </div>
       </div>

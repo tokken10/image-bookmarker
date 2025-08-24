@@ -1,54 +1,89 @@
 import { useState, useEffect } from 'react';
-import type { ImageBookmark } from './types';
-import { loadBookmarks } from './lib/storage';
+import type { ImageBookmark, Topic } from './types';
+import { loadStore, addTopic, renameTopic, deleteTopic, deleteImage } from './lib/storage';
+import { filterByTopic } from './lib/filter';
 import Header from './components/Header';
+import TopicBar from './components/TopicBar';
 import InputBar from './components/InputBar';
 import Gallery from './components/Gallery';
 import Lightbox from './components/Lightbox';
 
 export default function App() {
-  console.log('App component rendering...');
-  const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [images, setImages] = useState<ImageBookmark[]>([]);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [activeTopic, setActiveTopic] = useState('all');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  // Load bookmarks on initial render
-  useEffect(() => {
-    console.log('Loading bookmarks...');
-    try {
-      const savedBookmarks = loadBookmarks();
-      console.log('Loaded bookmarks:', savedBookmarks);
-      setBookmarks(savedBookmarks);
-    } catch (error) {
-      console.error('Error loading bookmarks:', error);
-    }
-  }, [refreshTrigger]);
-
-  const handleAddBookmark = () => {
-    setRefreshTrigger(prev => prev + 1);
+  const refresh = () => {
+    const store = loadStore();
+    setImages(store.images);
+    setTopics(store.topics);
   };
 
-  const handleUpdateBookmark = (updated: ImageBookmark) => {
-    setBookmarks(prev =>
-      prev.map(bookmark => (bookmark.id === updated.id ? updated : bookmark))
-    );
-    setRefreshTrigger(prev => prev + 1);
+  useEffect(() => {
+    const store = loadStore();
+    setImages(store.images);
+    setTopics(store.topics);
+    const params = new URLSearchParams(window.location.search);
+    const topicParam = params.get('topic');
+    if (topicParam && (topicParam === 'all' || store.topics.some(t => t.slug === topicParam))) {
+      setActiveTopic(topicParam);
+    }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (activeTopic === 'all') {
+      params.delete('topic');
+    } else {
+      params.set('topic', activeTopic);
+    }
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    window.history.replaceState(null, '', newUrl);
+  }, [activeTopic]);
+
+  const handleSelectTopic = (slug: string) => {
+    setActiveTopic(slug);
+  };
+
+  const handleCreateTopic = (name: string): Topic => {
+    const t = addTopic(name);
+    refresh();
+    return t;
+  };
+
+  const handleRenameTopic = (oldSlug: string, newName: string) => {
+    renameTopic(oldSlug, newName);
+    refresh();
+  };
+
+  const handleDeleteTopic = (slug: string) => {
+    deleteTopic(slug);
+    refresh();
+    if (activeTopic === slug) setActiveTopic('all');
+  };
+
+  const handleAddBookmark = () => {
+    refresh();
+  };
+
+  const handleDeleteImage = (id: string) => {
+    deleteImage(id);
+    refresh();
   };
 
   const handleImageClick = (index: number) => {
     setLightboxIndex(index);
-    // Disable body scroll when lightbox is open
     document.body.style.overflow = 'hidden';
   };
 
   const handleCloseLightbox = () => {
     setLightboxIndex(null);
-    // Re-enable body scroll
     document.body.style.overflow = 'auto';
   };
 
   const handleNextImage = () => {
-    if (lightboxIndex !== null && lightboxIndex < bookmarks.length - 1) {
+    if (lightboxIndex !== null && lightboxIndex < filteredImages.length - 1) {
       setLightboxIndex(lightboxIndex + 1);
     }
   };
@@ -59,21 +94,37 @@ export default function App() {
     }
   };
 
+  const handleUpdateBookmark = (updated: ImageBookmark) => {
+    setImages(prev => prev.map(b => (b.id === updated.id ? updated : b)));
+    refresh();
+  };
+
+  const filteredImages = filterByTopic(images, activeTopic);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       <Header />
+      <TopicBar
+        topics={topics}
+        activeTopic={activeTopic}
+        onSelect={handleSelectTopic}
+        onCreate={handleCreateTopic}
+        onRename={handleRenameTopic}
+        onDelete={handleDeleteTopic}
+      />
       <main className="py-8">
-        <InputBar onAddBookmark={handleAddBookmark} />
+        <InputBar topics={topics} onAddBookmark={handleAddBookmark} onCreateTopic={handleCreateTopic} />
         <Gallery
+          images={filteredImages}
           onImageClick={handleImageClick}
-          refreshTrigger={refreshTrigger}
-          onAddBookmark={handleAddBookmark}
+          onDeleteImage={handleDeleteImage}
+          activeTopic={activeTopic}
         />
       </main>
-
       {lightboxIndex !== null && (
         <Lightbox
-          bookmarks={bookmarks}
+          bookmarks={filteredImages}
+          topics={topics}
           currentIndex={lightboxIndex}
           onClose={handleCloseLightbox}
           onNext={handleNextImage}

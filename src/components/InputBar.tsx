@@ -1,16 +1,40 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { isValidImageUrl } from '../utils/validation';
-import { addBookmark } from '../lib/storage';
+import { addImage } from '../lib/storage';
+import type { Topic } from '../types';
 
 interface InputBarProps {
+  topics: Topic[];
   onAddBookmark: () => void;
+  onCreateTopic: (name: string) => Topic;
 }
 
-export default function InputBar({ onAddBookmark }: InputBarProps) {
+export default function InputBar({ topics, onAddBookmark, onCreateTopic }: InputBarProps) {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
+  const [topicInput, setTopicInput] = useState('');
+
+  const baseClass =
+    'inline-flex items-center px-3 py-1.5 rounded-full text-sm bg-slate-100 hover:bg-slate-200';
+  const activeClass = 'bg-indigo-600 text-white';
+
+  const toggleTopic = (slug: string) => {
+    setSelectedTopics(prev =>
+      prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]
+    );
+  };
+
+  const handleTopicKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && topicInput.trim()) {
+      e.preventDefault();
+      const t = onCreateTopic(topicInput.trim());
+      setSelectedTopics(prev => [...prev, t.slug]);
+      setTopicInput('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,10 +61,11 @@ export default function InputBar({ onAddBookmark }: InputBarProps) {
         img.src = url;
       });
 
-      // Add to bookmarks if image loads successfully
-      addBookmark({ url, title: title.trim() || undefined });
+      // Add to store if image loads successfully
+      addImage({ url, title: title.trim() || undefined, topics: selectedTopics });
       setUrl('');
       setTitle('');
+      setSelectedTopics([]);
       onAddBookmark();
     } catch (err) {
       console.error('Failed to load image:', err);
@@ -82,6 +107,31 @@ export default function InputBar({ onAddBookmark }: InputBarProps) {
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             disabled={isSubmitting}
           />
+        </div>
+
+        <div>
+          <span className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Topics</span>
+          <div className="flex flex-wrap gap-2">
+            {topics.map(t => (
+              <button
+                type="button"
+                key={t.id}
+                className={`${baseClass} ${selectedTopics.includes(t.slug) ? activeClass : ''}`}
+                onClick={() => toggleTopic(t.slug)}
+              >
+                {t.name}
+              </button>
+            ))}
+            <input
+              type="text"
+              value={topicInput}
+              onChange={(e) => setTopicInput(e.target.value)}
+              onKeyDown={handleTopicKeyDown}
+              placeholder="Add topic"
+              className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-full dark:bg-gray-800 dark:text-white"
+              disabled={isSubmitting}
+            />
+          </div>
         </div>
 
         {error && (
