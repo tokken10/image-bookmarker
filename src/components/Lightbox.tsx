@@ -140,6 +140,14 @@ export default function Lightbox({
             {' • '}
             {currentIndex + 1} of {bookmarks.length}
           </p>
+          <a
+            href={currentBookmark.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block mt-1 text-sm text-blue-300 hover:underline break-all"
+          >
+            {currentBookmark.url}
+          </a>
           <button
             onClick={handleEdit}
             className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
