@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { ImageBookmark } from './types';
 import { loadBookmarks } from './lib/storage';
 import Header from './components/Header';
 import InputBar from './components/InputBar';
 import Gallery from './components/Gallery';
 import Lightbox from './components/Lightbox';
+import CategorySelector from './components/CategorySelector';
 
 export default function App() {
   console.log('App component rendering...');
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   // Load bookmarks on initial render
   useEffect(() => {
@@ -27,6 +29,26 @@ export default function App() {
   const handleAddBookmark = () => {
     setRefreshTrigger(prev => prev + 1);
   };
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    bookmarks.forEach(b => {
+      if (b.category) set.add(b.category);
+    });
+    return Array.from(set);
+  }, [bookmarks]);
+
+  const filteredBookmarks = useMemo(() => {
+    return selectedCategory === 'All'
+      ? bookmarks
+      : bookmarks.filter(b => b.category === selectedCategory);
+  }, [bookmarks, selectedCategory]);
+
+  useEffect(() => {
+    if (selectedCategory !== 'All' && !categories.includes(selectedCategory)) {
+      setSelectedCategory('All');
+    }
+  }, [categories, selectedCategory]);
 
   const handleUpdateBookmark = (updated: ImageBookmark) => {
     setBookmarks(prev =>
@@ -48,7 +70,7 @@ export default function App() {
   };
 
   const handleNextImage = () => {
-    if (lightboxIndex !== null && lightboxIndex < bookmarks.length - 1) {
+    if (lightboxIndex !== null && lightboxIndex < filteredBookmarks.length - 1) {
       setLightboxIndex(lightboxIndex + 1);
     }
   };
@@ -63,17 +85,23 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       <Header />
       <main className="py-8">
-        <InputBar onAddBookmark={handleAddBookmark} />
+        <InputBar onAddBookmark={handleAddBookmark} selectedCategory={selectedCategory} />
+        <CategorySelector
+          categories={categories}
+          selected={selectedCategory}
+          onSelect={setSelectedCategory}
+        />
         <Gallery
           onImageClick={handleImageClick}
           refreshTrigger={refreshTrigger}
           onAddBookmark={handleAddBookmark}
+          selectedCategory={selectedCategory}
         />
       </main>
 
       {lightboxIndex !== null && (
         <Lightbox
-          bookmarks={bookmarks}
+          bookmarks={filteredBookmarks}
           currentIndex={lightboxIndex}
           onClose={handleCloseLightbox}
           onNext={handleNextImage}

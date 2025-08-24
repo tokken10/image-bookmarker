@@ -1,16 +1,23 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { isValidImageUrl } from '../utils/validation';
 import { addBookmark } from '../lib/storage';
 
 interface InputBarProps {
   onAddBookmark: () => void;
+  selectedCategory: string;
 }
 
-export default function InputBar({ onAddBookmark }: InputBarProps) {
+export default function InputBar({ onAddBookmark, selectedCategory }: InputBarProps) {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
+  const [category, setCategory] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    // Default the category input to the currently selected category
+    setCategory(selectedCategory !== 'All' ? selectedCategory : '');
+  }, [selectedCategory]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,9 +45,14 @@ export default function InputBar({ onAddBookmark }: InputBarProps) {
       });
 
       // Add to bookmarks if image loads successfully
-      addBookmark({ url, title: title.trim() || undefined });
+      addBookmark({
+        url,
+        title: title.trim() || undefined,
+        category: category.trim() || undefined,
+      });
       setUrl('');
       setTitle('');
+      setCategory(selectedCategory !== 'All' ? selectedCategory : '');
       onAddBookmark();
     } catch (err) {
       console.error('Failed to load image:', err);
@@ -79,6 +91,21 @@ export default function InputBar({ onAddBookmark }: InputBarProps) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="My beautiful image"
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+            disabled={isSubmitting}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="image-category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Category (optional)
+          </label>
+          <input
+            id="image-category"
+            type="text"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            placeholder="e.g. nature, art"
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             disabled={isSubmitting}
           />
