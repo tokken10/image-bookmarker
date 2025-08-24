@@ -139,6 +139,14 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark }:
                 <div className="w-full p-2 bg-gradient-to-t from-black/80 to-transparent text-white">
                   <h3 className="font-medium truncate">{bookmark.title || 'Untitled'}</h3>
                   <p className="text-xs opacity-80">{formatDate(bookmark.createdAt)}</p>
+                  <a
+                    href={bookmark.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-300 hover:underline break-all mt-1"
+                  >
+                    {bookmark.url}
+                  </a>
                 </div>
               </div>
 
