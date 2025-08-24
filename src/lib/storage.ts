@@ -33,6 +33,24 @@ export function addBookmark(bookmark: Omit<ImageBookmark, 'id' | 'createdAt'>): 
   return newBookmark;
 }
 
+export function updateBookmark(
+  id: string,
+  updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt'>>
+): ImageBookmark | null {
+  const bookmarks = loadBookmarks();
+  const index = bookmarks.findIndex(bookmark => bookmark.id === id);
+  if (index === -1) return null;
+
+  const updatedBookmark: ImageBookmark = {
+    ...bookmarks[index],
+    ...updates,
+  };
+
+  bookmarks[index] = updatedBookmark;
+  saveBookmarks(bookmarks);
+  return updatedBookmark;
+}
+
 export function removeBookmark(id: string): void {
   const bookmarks = loadBookmarks().filter(bookmark => bookmark.id !== id);
   saveBookmarks(bookmarks);
