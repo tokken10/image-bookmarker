@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import type { ImageBookmark } from '../types';
 import { formatDate } from '../utils/validation';
+import { updateBookmark } from '../lib/storage';
 
 interface LightboxProps {
   bookmarks: ImageBookmark[];
@@ -8,6 +9,7 @@ interface LightboxProps {
   onClose: () => void;
   onNext: () => void;
   onPrev: () => void;
+  onUpdateBookmark: (bookmark: ImageBookmark) => void;
 }
 
 export default function Lightbox({
@@ -16,6 +18,7 @@ export default function Lightbox({
   onClose,
   onNext,
   onPrev,
+  onUpdateBookmark,
 }: LightboxProps) {
   const currentBookmark = bookmarks[currentIndex];
 
@@ -41,6 +44,22 @@ export default function Lightbox({
   }, [onClose, onNext, onPrev]);
 
   if (!currentBookmark) return null;
+
+  const handleEdit = () => {
+    const newTitle = window.prompt(
+      'Enter a title for this image',
+      currentBookmark.title || ''
+    );
+    if (newTitle === null) return;
+
+    const trimmed = newTitle.trim();
+    const updated = updateBookmark(currentBookmark.id, {
+      title: trimmed || undefined,
+    });
+    if (updated) {
+      onUpdateBookmark(updated);
+    }
+  };
 
   return (
     <div 
@@ -121,6 +140,12 @@ export default function Lightbox({
             {' • '}
             {currentIndex + 1} of {bookmarks.length}
           </p>
+          <button
+            onClick={handleEdit}
+            className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+          >
+            Edit title
+          </button>
         </div>
       </div>
     </div>
