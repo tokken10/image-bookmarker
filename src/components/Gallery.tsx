@@ -7,9 +7,10 @@ interface GalleryProps {
   onImageClick: (index: number) => void;
   refreshTrigger: number;
   onAddBookmark: () => void;
+  selectedCategory: string;
 }
 
-export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark }: GalleryProps) {
+export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, selectedCategory }: GalleryProps) {
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [infoVisibleId, setInfoVisibleId] = useState<string | null>(null);
@@ -26,6 +27,7 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark }:
     if (window.confirm('Are you sure you want to remove this bookmark?')) {
       removeBookmark(id);
       setBookmarks(bookmarks.filter(bookmark => bookmark.id !== id));
+      onAddBookmark();
     }
   };
 
@@ -52,7 +54,10 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark }:
     const newItems: ImageBookmark[] = [];
 
     if (droppedUrl && isValidImageUrl(droppedUrl)) {
-      const bookmark = addBookmark({ url: droppedUrl });
+      const bookmark = addBookmark({
+        url: droppedUrl,
+        category: selectedCategory !== 'All' ? selectedCategory : undefined,
+      });
       newItems.push(bookmark);
     }
 
@@ -64,7 +69,11 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark }:
         reader.onerror = () => reject(new Error('Failed to read file'));
         reader.readAsDataURL(file);
       });
-      const bookmark = addBookmark({ url: dataUrl, title: file.name });
+      const bookmark = addBookmark({
+        url: dataUrl,
+        title: file.name,
+        category: selectedCategory !== 'All' ? selectedCategory : undefined,
+      });
       newItems.push(bookmark);
     }
 
@@ -81,6 +90,10 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark }:
       </div>
     );
   }
+
+  const filteredBookmarks = selectedCategory === 'All'
+    ? bookmarks
+    : bookmarks.filter(b => b.category === selectedCategory);
 
   return (
     <div
@@ -103,9 +116,13 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark }:
             Add an image URL or drag and drop an image to get started!
           </p>
         </div>
+      ) : filteredBookmarks.length === 0 ? (
+        <div className="text-center py-12">
+          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">No bookmarks in this category</h3>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {bookmarks.map((bookmark, index) => (
+          {filteredBookmarks.map((bookmark, index) => (
             <div
               key={bookmark.id}
               onClick={() => onImageClick(index)}
