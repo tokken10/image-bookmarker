@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { ImageBookmark } from '../types';
 import { formatDate } from '../utils/validation';
 import { updateBookmark } from '../lib/storage';
@@ -21,6 +21,12 @@ export default function Lightbox({
   onUpdateBookmark,
 }: LightboxProps) {
   const currentBookmark = bookmarks[currentIndex];
+
+  const [isZoomed, setIsZoomed] = useState(false);
+
+  useEffect(() => {
+    setIsZoomed(false);
+  }, [currentIndex]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -88,17 +94,15 @@ export default function Lightbox({
 
         {/* Image container */}
         <div className="flex-1 flex items-center justify-center overflow-hidden">
-          <a
-            href={currentBookmark.url}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <img
-              src={currentBookmark.url}
-              alt={currentBookmark.title || 'Bookmarked image'}
-              className="max-w-full max-h-[70vh] object-contain cursor-zoom-in"
-            />
-          </a>
+          <img
+            src={currentBookmark.url}
+            alt={currentBookmark.title || 'Bookmarked image'}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsZoomed((z) => !z);
+            }}
+            className={`max-w-full max-h-[70vh] object-contain transition-transform duration-300 ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'}`}
+          />
         </div>
 
         {/* Navigation buttons */}
