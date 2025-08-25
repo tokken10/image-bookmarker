@@ -93,7 +93,7 @@ export default function Lightbox({
         </button>
 
         {/* Image container */}
-        <div className="flex-1 flex items-center justify-center overflow-hidden">
+        <div className="flex-1 flex items-center justify-center">
           <img
             src={currentBookmark.url}
             alt={currentBookmark.title || 'Bookmarked image'}
@@ -101,7 +101,9 @@ export default function Lightbox({
               e.stopPropagation();
               setIsZoomed((z) => !z);
             }}
-            className={`max-w-full max-h-[70vh] object-contain transition-transform duration-300 ${isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'}`}
+            className={`max-w-full max-h-[70vh] object-contain transition-transform duration-300 origin-center ${
+              isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'
+            }`}
           />
         </div>
 
