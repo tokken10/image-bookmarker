@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { ImageBookmark } from './types';
-import { loadBookmarks } from './lib/storage';
+import { loadBookmarks, shuffleBookmarks } from './lib/storage';
 import Header from './components/Header';
 import InputBar from './components/InputBar';
 import Gallery from './components/Gallery';
@@ -81,6 +81,12 @@ export default function App() {
     }
   };
 
+  const handleShuffle = () => {
+    const shuffled = shuffleBookmarks();
+    setBookmarks(shuffled);
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       <Header />
@@ -91,6 +97,20 @@ export default function App() {
           selected={selectedCategory}
           onSelect={setSelectedCategory}
         />
+        <div className="w-full max-w-4xl mx-auto p-4">
+          <button
+            type="button"
+            onClick={handleShuffle}
+            disabled={bookmarks.length === 0}
+            className={`px-4 py-2 rounded-md text-white font-medium ${
+              bookmarks.length === 0
+                ? 'bg-purple-400 cursor-not-allowed'
+                : 'bg-purple-600 hover:bg-purple-700'
+            } transition-colors`}
+          >
+            Shuffle Images
+          </button>
+        </div>
         <Gallery
           onImageClick={handleImageClick}
           refreshTrigger={refreshTrigger}
