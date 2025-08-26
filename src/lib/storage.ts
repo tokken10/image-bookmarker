@@ -56,6 +56,12 @@ export function removeBookmark(id: string): void {
   saveBookmarks(bookmarks);
 }
 
+export function removeBookmarks(ids: string[]): void {
+  const idSet = new Set(ids);
+  const bookmarks = loadBookmarks().filter(bookmark => !idSet.has(bookmark.id));
+  saveBookmarks(bookmarks);
+}
+
 export function shuffleBookmarks(): ImageBookmark[] {
   const bookmarks = loadBookmarks();
   for (let i = bookmarks.length - 1; i > 0; i--) {
