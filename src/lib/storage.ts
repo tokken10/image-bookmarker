@@ -65,3 +65,10 @@ export function shuffleBookmarks(): ImageBookmark[] {
   saveBookmarks(bookmarks);
   return bookmarks;
 }
+
+export function reorderBookmarks(): ImageBookmark[] {
+  const bookmarks = loadBookmarks();
+  bookmarks.sort((a, b) => b.createdAt - a.createdAt);
+  saveBookmarks(bookmarks);
+  return bookmarks;
+}
