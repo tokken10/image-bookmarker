@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { ImageBookmark } from './types';
-import { loadBookmarks, shuffleBookmarks } from './lib/storage';
+import { loadBookmarks, reorderBookmarks, shuffleBookmarks } from './lib/storage';
 import Header from './components/Header';
 import InputBar from './components/InputBar';
 import Gallery from './components/Gallery';
@@ -87,6 +87,12 @@ export default function App() {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  const handleReorder = () => {
+    const ordered = reorderBookmarks();
+    setBookmarks(ordered);
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       <Header />
@@ -97,7 +103,7 @@ export default function App() {
           selected={selectedCategory}
           onSelect={setSelectedCategory}
         />
-        <div className="w-full max-w-4xl mx-auto p-4">
+        <div className="w-full max-w-4xl mx-auto p-4 flex gap-4">
           <button
             type="button"
             onClick={handleShuffle}
@@ -109,6 +115,18 @@ export default function App() {
             } transition-colors`}
           >
             Shuffle Images
+          </button>
+          <button
+            type="button"
+            onClick={handleReorder}
+            disabled={bookmarks.length === 0}
+            className={`px-4 py-2 rounded-md text-white font-medium ${
+              bookmarks.length === 0
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gray-600 hover:bg-gray-700'
+            } transition-colors`}
+          >
+            Reorder Images
           </button>
         </div>
         <Gallery
