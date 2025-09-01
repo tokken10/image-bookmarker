@@ -12,6 +12,7 @@ export default function App() {
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [lightboxBookmarks, setLightboxBookmarks] = useState<ImageBookmark[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   // Load bookmarks on initial render
@@ -38,12 +39,6 @@ export default function App() {
     return Array.from(set);
   }, [bookmarks]);
 
-  const filteredBookmarks = useMemo(() => {
-    return selectedCategory === 'All'
-      ? bookmarks
-      : bookmarks.filter(b => b.category === selectedCategory);
-  }, [bookmarks, selectedCategory]);
-
   useEffect(() => {
     if (selectedCategory !== 'All' && !categories.includes(selectedCategory)) {
       setSelectedCategory('All');
@@ -54,10 +49,14 @@ export default function App() {
     setBookmarks(prev =>
       prev.map(bookmark => (bookmark.id === updated.id ? updated : bookmark))
     );
+    setLightboxBookmarks(prev =>
+      prev.map(bookmark => (bookmark.id === updated.id ? updated : bookmark))
+    );
     setRefreshTrigger(prev => prev + 1);
   };
 
-  const handleImageClick = (index: number) => {
+  const handleImageClick = (index: number, items: ImageBookmark[]) => {
+    setLightboxBookmarks(items);
     setLightboxIndex(index);
     // Disable body scroll when lightbox is open
     document.body.style.overflow = 'hidden';
@@ -70,7 +69,7 @@ export default function App() {
   };
 
   const handleNextImage = () => {
-    if (lightboxIndex !== null && lightboxIndex < filteredBookmarks.length - 1) {
+    if (lightboxIndex !== null && lightboxIndex < lightboxBookmarks.length - 1) {
       setLightboxIndex(lightboxIndex + 1);
     }
   };
@@ -139,7 +138,7 @@ export default function App() {
 
       {lightboxIndex !== null && (
         <Lightbox
-          bookmarks={filteredBookmarks}
+          bookmarks={lightboxBookmarks}
           currentIndex={lightboxIndex}
           onClose={handleCloseLightbox}
           onNext={handleNextImage}

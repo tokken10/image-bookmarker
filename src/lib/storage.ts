@@ -1,11 +1,24 @@
 import type { ImageBookmark } from '../types';
+import { buildSearchTokens } from '../utils/search';
 
 const STORAGE_KEY = 'imageBookmarks:v1';
 
 export function loadBookmarks(): ImageBookmark[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const bookmarks: ImageBookmark[] = raw ? JSON.parse(raw) : [];
+    let changed = false;
+    const withTokens = bookmarks.map((b) => {
+      if (!b.searchTokens) {
+        changed = true;
+        return { ...b, searchTokens: buildSearchTokens(b) };
+      }
+      return b;
+    });
+    if (changed) {
+      saveBookmarks(withTokens);
+    }
+    return withTokens;
   } catch (error) {
     console.error('Failed to load bookmarks:', error);
     return [];
@@ -20,13 +33,17 @@ export function saveBookmarks(bookmarks: ImageBookmark[]): void {
   }
 }
 
-export function addBookmark(bookmark: Omit<ImageBookmark, 'id' | 'createdAt'>): ImageBookmark {
+export function addBookmark(
+  bookmark: Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>
+): ImageBookmark {
   const bookmarks = loadBookmarks();
   const newBookmark: ImageBookmark = {
     ...bookmark,
     id: crypto.randomUUID(),
     createdAt: Date.now(),
   };
+
+  newBookmark.searchTokens = buildSearchTokens(newBookmark);
   
   const updatedBookmarks = [newBookmark, ...bookmarks];
   saveBookmarks(updatedBookmarks);
@@ -35,7 +52,7 @@ export function addBookmark(bookmark: Omit<ImageBookmark, 'id' | 'createdAt'>): 
 
 export function updateBookmark(
   id: string,
-  updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt'>>
+  updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>
 ): ImageBookmark | null {
   const bookmarks = loadBookmarks();
   const index = bookmarks.findIndex(bookmark => bookmark.id === id);
@@ -45,6 +62,7 @@ export function updateBookmark(
     ...bookmarks[index],
     ...updates,
   };
+  updatedBookmark.searchTokens = buildSearchTokens(updatedBookmark);
 
   bookmarks[index] = updatedBookmark;
   saveBookmarks(bookmarks);

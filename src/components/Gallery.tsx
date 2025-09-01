@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ImageBookmark } from '../types';
 import { addBookmark, loadBookmarks, removeBookmark, removeBookmarks } from '../lib/storage';
 import { formatDate, isValidImageUrl } from '../utils/validation';
+import { searchImages } from '../utils/search';
 
 interface GalleryProps {
-  onImageClick: (index: number) => void;
+  onImageClick: (index: number, items: ImageBookmark[]) => void;
   refreshTrigger: number;
   onAddBookmark: () => void;
   selectedCategory: string;
@@ -17,6 +18,13 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
   const [isDragging, setIsDragging] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(t);
+  }, [search]);
 
   useEffect(() => {
     const savedBookmarks = loadBookmarks();
@@ -114,6 +122,17 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
     }
   };
 
+  const filteredByCategory = selectedCategory === 'All'
+    ? bookmarks
+    : bookmarks.filter(b => b.category === selectedCategory);
+
+  const searchResults = useMemo(
+    () => searchImages(filteredByCategory, debouncedSearch),
+    [filteredByCategory, debouncedSearch]
+  );
+
+  const displayedBookmarks = searchResults.map((r) => r.bookmark);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -121,10 +140,6 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
       </div>
     );
   }
-
-  const filteredBookmarks = selectedCategory === 'All'
-    ? bookmarks
-    : bookmarks.filter(b => b.category === selectedCategory);
 
   return (
     <div
@@ -139,6 +154,19 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
           Drop images here
         </div>
       )}
+
+      <div className="mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') setSearch('');
+          }}
+          placeholder="Search images..."
+          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+        />
+      </div>
 
       {bookmarks.length > 0 && (
         <div className="mb-4 flex gap-2">
@@ -188,18 +216,24 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
             Add an image URL or drag and drop an image to get started!
           </p>
         </div>
-      ) : filteredBookmarks.length === 0 ? (
+      ) : displayedBookmarks.length === 0 ? (
         <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">No bookmarks in this category</h3>
+          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">
+            {debouncedSearch ? 'No results' : 'No bookmarks in this category'}
+          </h3>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {filteredBookmarks.map((bookmark, index) => {
+          {displayedBookmarks.map((bookmark, index) => {
             const isSelected = selectedIds.includes(bookmark.id);
             return (
               <div
                 key={bookmark.id}
-                onClick={() => (selectMode ? toggleSelection(bookmark.id) : onImageClick(index))}
+                onClick={() =>
+                  selectMode
+                    ? toggleSelection(bookmark.id)
+                    : onImageClick(index, displayedBookmarks)
+                }
                 className={`group relative aspect-[4/3] rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-transform duration-200 cursor-pointer bg-gray-100 dark:bg-gray-800 hover:z-10 hover:scale-105 ${
                   isSelected ? 'ring-4 ring-blue-500' : ''
                 }`}
@@ -211,7 +245,7 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
                     if (selectMode) {
                       toggleSelection(bookmark.id);
                     } else {
-                      onImageClick(index);
+                      onImageClick(index, displayedBookmarks);
                     }
                   }
                 }}
