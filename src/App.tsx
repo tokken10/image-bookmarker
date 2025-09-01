@@ -6,6 +6,7 @@ import InputBar from './components/InputBar';
 import Gallery from './components/Gallery';
 import Lightbox from './components/Lightbox';
 import CategorySelector from './components/CategorySelector';
+import ScrollToTopButton from './components/ScrollToTopButton';
 
 export default function App() {
   console.log('App component rendering...');
@@ -146,6 +147,7 @@ export default function App() {
           onUpdateBookmark={handleUpdateBookmark}
         />
       )}
+      <ScrollToTopButton />
     </div>
   );
 }
