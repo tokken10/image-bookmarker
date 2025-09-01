@@ -10,6 +10,7 @@ interface InputBarProps {
 export default function InputBar({ onAddBookmark, selectedCategory }: InputBarProps) {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
   const [category, setCategory] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -48,10 +49,12 @@ export default function InputBar({ onAddBookmark, selectedCategory }: InputBarPr
       addBookmark({
         url,
         title: title.trim() || undefined,
+        sourceUrl: sourceUrl.trim() || undefined,
         category: category.trim() || undefined,
       });
       setUrl('');
       setTitle('');
+      setSourceUrl('');
       setCategory(selectedCategory !== 'All' ? selectedCategory : '');
       onAddBookmark();
     } catch (err) {
@@ -78,6 +81,21 @@ export default function InputBar({ onAddBookmark, selectedCategory }: InputBarPr
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             disabled={isSubmitting}
             required
+          />
+        </div>
+
+        <div>
+          <label htmlFor="source-url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Source Page URL (optional)
+          </label>
+          <input
+            id="source-url"
+            type="url"
+            value={sourceUrl}
+            onChange={(e) => setSourceUrl(e.target.value)}
+            placeholder="https://example.com"
+            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+            disabled={isSubmitting}
           />
         </div>
         
