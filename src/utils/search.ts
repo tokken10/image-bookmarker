@@ -36,10 +36,7 @@ export interface SearchResult {
 export function searchImages(images: ImageBookmark[], query: string): SearchResult[] {
   const qTokens = tokenize(query);
   if (qTokens.length === 0) {
-    return images
-      .slice()
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .map(b => ({ bookmark: b, score: 0 }));
+    return images.map(b => ({ bookmark: b, score: 0 }));
   }
 
   const results: SearchResult[] = [];
