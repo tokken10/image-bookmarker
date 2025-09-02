@@ -35,7 +35,7 @@ export default function App() {
   const categories = useMemo(() => {
     const set = new Set<string>();
     bookmarks.forEach(b => {
-      if (b.category) set.add(b.category);
+      b.categories?.forEach((cat) => set.add(cat));
     });
     return Array.from(set);
   }, [bookmarks]);

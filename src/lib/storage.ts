@@ -6,19 +6,27 @@ const STORAGE_KEY = 'imageBookmarks:v1';
 export function loadBookmarks(): ImageBookmark[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const bookmarks: ImageBookmark[] = raw ? JSON.parse(raw) : [];
+    const parsed: (ImageBookmark & { category?: string })[] = raw
+      ? JSON.parse(raw)
+      : [];
     let changed = false;
-    const withTokens = bookmarks.map((b) => {
-      if (!b.searchTokens) {
+    const normalized: ImageBookmark[] = parsed.map((b) => {
+      const copy: ImageBookmark & { category?: string } = { ...b };
+      if (copy.category && !copy.categories) {
+        copy.categories = [copy.category];
+        delete copy.category;
         changed = true;
-        return { ...b, searchTokens: buildSearchTokens(b) };
       }
-      return b;
+      if (!copy.searchTokens) {
+        copy.searchTokens = buildSearchTokens(copy);
+        changed = true;
+      }
+      return copy as ImageBookmark;
     });
     if (changed) {
-      saveBookmarks(withTokens);
+      saveBookmarks(normalized);
     }
-    return withTokens;
+    return normalized;
   } catch (error) {
     console.error('Failed to load bookmarks:', error);
     return [];
@@ -42,6 +50,15 @@ export function addBookmark(
     id: crypto.randomUUID(),
     createdAt: Date.now(),
   };
+
+  if (newBookmark.categories) {
+    newBookmark.categories = newBookmark.categories
+      .map((c) => c.trim())
+      .filter(Boolean);
+    if (newBookmark.categories.length === 0) {
+      delete newBookmark.categories;
+    }
+  }
 
   newBookmark.searchTokens = buildSearchTokens(newBookmark);
   

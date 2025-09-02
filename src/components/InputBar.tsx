@@ -11,13 +11,13 @@ export default function InputBar({ onAddBookmark, selectedCategory }: InputBarPr
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
-  const [category, setCategory] = useState('');
+  const [categories, setCategories] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Default the category input to the currently selected category
-    setCategory(selectedCategory !== 'All' ? selectedCategory : '');
+    // Default the categories input to the currently selected category
+    setCategories(selectedCategory !== 'All' ? selectedCategory : '');
   }, [selectedCategory]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,12 +50,15 @@ export default function InputBar({ onAddBookmark, selectedCategory }: InputBarPr
         url,
         title: title.trim() || undefined,
         sourceUrl: sourceUrl.trim() || undefined,
-        category: category.trim() || undefined,
+        categories: categories
+          .split(',')
+          .map((c) => c.trim())
+          .filter(Boolean),
       });
       setUrl('');
       setTitle('');
       setSourceUrl('');
-      setCategory(selectedCategory !== 'All' ? selectedCategory : '');
+      setCategories(selectedCategory !== 'All' ? selectedCategory : '');
       onAddBookmark();
     } catch (err) {
       console.error('Failed to load image:', err);
@@ -115,14 +118,14 @@ export default function InputBar({ onAddBookmark, selectedCategory }: InputBarPr
         </div>
 
         <div>
-          <label htmlFor="image-category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Category (optional)
+          <label htmlFor="image-categories" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Categories (optional, comma separated)
           </label>
           <input
-            id="image-category"
+            id="image-categories"
             type="text"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            value={categories}
+            onChange={(e) => setCategories(e.target.value)}
             placeholder="e.g. nature, art"
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             disabled={isSubmitting}
