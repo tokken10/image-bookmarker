@@ -67,6 +67,25 @@ export default function Lightbox({
     }
   };
 
+  const handleEditCategories = () => {
+    const existing = currentBookmark.categories?.join(', ') || '';
+    const input = window.prompt(
+      'Enter categories for this image, separated by commas',
+      existing
+    );
+    if (input === null) return;
+    const list = input
+      .split(',')
+      .map((c) => c.trim())
+      .filter(Boolean);
+    const updated = updateBookmark(currentBookmark.id, {
+      categories: list.length > 0 ? list : undefined,
+    });
+    if (updated) {
+      onUpdateBookmark(updated);
+    }
+  };
+
   return (
     <div 
       className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4"
@@ -154,12 +173,23 @@ export default function Lightbox({
           >
             {currentBookmark.url}
           </a>
-          <button
-            onClick={handleEdit}
-            className="mt-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-          >
-            Edit title
-          </button>
+          <p className="text-sm text-gray-300 mt-1">
+            Categories: {currentBookmark.categories?.join(', ') || 'None'}
+          </p>
+          <div className="mt-2 space-x-2">
+            <button
+              onClick={handleEdit}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+            >
+              Edit title
+            </button>
+            <button
+              onClick={handleEditCategories}
+              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+            >
+              Edit categories
+            </button>
+          </div>
         </div>
       </div>
     </div>

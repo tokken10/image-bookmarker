@@ -24,7 +24,10 @@ export function buildSearchTokens(img: ImageBookmark): string[] {
   add(img.url);
   add(img.sourceUrl);
   if (img.topics) add(img.topics);
-  if (img.category) add(img.category);
+  if (img.categories) add(img.categories);
+  // Support legacy single category field
+  const legacyCategory = (img as { category?: string }).category;
+  if (legacyCategory) add(legacyCategory);
   return Array.from(tokens);
 }
 

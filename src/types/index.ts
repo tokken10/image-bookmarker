@@ -7,9 +7,9 @@ export type ImageBookmark = {
    */
   sourceUrl?: string;
   /**
-   * Optional category or topic used for filtering bookmarks
+   * Optional categories used for filtering bookmarks
    */
-  category?: string;
+  categories?: string[];
   /**
    * Optional list of topics associated with this bookmark
    */

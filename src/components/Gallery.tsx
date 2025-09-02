@@ -95,7 +95,7 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
     if (droppedUrl && isValidImageUrl(droppedUrl)) {
       const bookmark = addBookmark({
         url: droppedUrl,
-        category: selectedCategory !== 'All' ? selectedCategory : undefined,
+        categories: selectedCategory !== 'All' ? [selectedCategory] : undefined,
       });
       newItems.push(bookmark);
     }
@@ -111,7 +111,7 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
       const bookmark = addBookmark({
         url: dataUrl,
         title: file.name,
-        category: selectedCategory !== 'All' ? selectedCategory : undefined,
+        categories: selectedCategory !== 'All' ? [selectedCategory] : undefined,
       });
       newItems.push(bookmark);
     }
@@ -124,7 +124,7 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
 
   const filteredByCategory = selectedCategory === 'All'
     ? bookmarks
-    : bookmarks.filter(b => b.category === selectedCategory);
+    : bookmarks.filter(b => b.categories?.includes(selectedCategory));
 
   const searchResults = useMemo(
     () => searchImages(filteredByCategory, debouncedSearch),
