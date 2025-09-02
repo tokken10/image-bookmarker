@@ -10,6 +10,7 @@ interface LightboxProps {
   onNext: () => void;
   onPrev: () => void;
   onUpdateBookmark: (bookmark: ImageBookmark) => void;
+  allCategories: string[];
 }
 
 export default function Lightbox({
@@ -19,10 +20,14 @@ export default function Lightbox({
   onNext,
   onPrev,
   onUpdateBookmark,
+  allCategories,
 }: LightboxProps) {
   const currentBookmark = bookmarks[currentIndex];
 
   const [isZoomed, setIsZoomed] = useState(false);
+  const [editingCategories, setEditingCategories] = useState(false);
+  const [tempCategories, setTempCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState('');
 
   useEffect(() => {
     setIsZoomed(false);
@@ -67,23 +72,36 @@ export default function Lightbox({
     }
   };
 
-  const handleEditCategories = () => {
-    const existing = currentBookmark.categories?.join(', ') || '';
-    const input = window.prompt(
-      'Enter categories for this image, separated by commas',
-      existing
+  const handleStartEditCategories = () => {
+    setTempCategories(currentBookmark.categories || []);
+    setNewCategory('');
+    setEditingCategories(true);
+  };
+
+  const handleToggleCategory = (category: string) => {
+    setTempCategories((prev) =>
+      prev.includes(category)
+        ? prev.filter((c) => c !== category)
+        : [...prev, category]
     );
-    if (input === null) return;
-    const list = input
-      .split(',')
-      .map((c) => c.trim())
-      .filter(Boolean);
+  };
+
+  const handleAddCategory = () => {
+    const trimmed = newCategory.trim();
+    if (trimmed && !tempCategories.includes(trimmed)) {
+      setTempCategories((prev) => [...prev, trimmed]);
+    }
+    setNewCategory('');
+  };
+
+  const handleSaveCategories = () => {
     const updated = updateBookmark(currentBookmark.id, {
-      categories: list.length > 0 ? list : undefined,
+      categories: tempCategories.length > 0 ? tempCategories : undefined,
     });
     if (updated) {
       onUpdateBookmark(updated);
     }
+    setEditingCategories(false);
   };
 
   return (
@@ -173,23 +191,73 @@ export default function Lightbox({
           >
             {currentBookmark.url}
           </a>
-          <p className="text-sm text-gray-300 mt-1">
-            Categories: {currentBookmark.categories?.join(', ') || 'None'}
-          </p>
-          <div className="mt-2 space-x-2">
-            <button
-              onClick={handleEdit}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-            >
-              Edit title
-            </button>
-            <button
-              onClick={handleEditCategories}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-            >
-              Edit categories
-            </button>
-          </div>
+          {editingCategories ? (
+            <div className="text-sm text-gray-300 mt-1">
+              <div className="flex flex-wrap gap-2 justify-center mb-2">
+                {[...new Set([...allCategories, ...tempCategories])].map((cat) => (
+                  <label key={cat} className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={tempCategories.includes(cat)}
+                      onChange={() => handleToggleCategory(cat)}
+                      className="mr-1"
+                    />
+                    {cat}
+                  </label>
+                ))}
+              </div>
+              <div className="mb-2">
+                <input
+                  type="text"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="New category"
+                  className="p-1 rounded bg-gray-800 text-white border border-gray-600"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddCategory}
+                  className="ml-2 px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded"
+                >
+                  Add
+                </button>
+              </div>
+              <div className="space-x-2">
+                <button
+                  onClick={handleSaveCategories}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setEditingCategories(false)}
+                  className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-gray-300 mt-1">
+                Categories: {currentBookmark.categories?.join(', ') || 'None'}
+              </p>
+              <div className="mt-2 space-x-2">
+                <button
+                  onClick={handleEdit}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                >
+                  Edit title
+                </button>
+                <button
+                  onClick={handleStartEditCategories}
+                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+                >
+                  Edit categories
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

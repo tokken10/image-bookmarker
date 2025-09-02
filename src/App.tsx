@@ -145,6 +145,7 @@ export default function App() {
           onNext={handleNextImage}
           onPrev={handlePrevImage}
           onUpdateBookmark={handleUpdateBookmark}
+          allCategories={categories}
         />
       )}
       <ScrollToTopButton />
