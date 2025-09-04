@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ImageBookmark } from '../types';
 import { formatDate } from '../utils/validation';
-import { updateBookmark } from '../lib/storage';
+import EditBookmarkModal from './EditBookmarkModal';
 
 interface LightboxProps {
   bookmarks: ImageBookmark[];
@@ -25,9 +25,8 @@ export default function Lightbox({
   const currentBookmark = bookmarks[currentIndex];
 
   const [isZoomed, setIsZoomed] = useState(false);
-  const [editingCategories, setEditingCategories] = useState(false);
-  const [tempCategories, setTempCategories] = useState<string[]>([]);
-  const [newCategory, setNewCategory] = useState('');
+  const [showInfo, setShowInfo] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     setIsZoomed(false);
@@ -56,52 +55,14 @@ export default function Lightbox({
 
   if (!currentBookmark) return null;
 
-  const handleEdit = () => {
-    const newTitle = window.prompt(
-      'Enter a title for this image',
-      currentBookmark.title || ''
+  const truncate = (str: string, length = 30) =>
+    str.length > length ? `${str.slice(0, length)}...` : str;
+
+  const copyToClipboard = (text: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).catch((err) =>
+      console.error('Failed to copy:', err)
     );
-    if (newTitle === null) return;
-
-    const trimmed = newTitle.trim();
-    const updated = updateBookmark(currentBookmark.id, {
-      title: trimmed || undefined,
-    });
-    if (updated) {
-      onUpdateBookmark(updated);
-    }
-  };
-
-  const handleStartEditCategories = () => {
-    setTempCategories(currentBookmark.categories || []);
-    setNewCategory('');
-    setEditingCategories(true);
-  };
-
-  const handleToggleCategory = (category: string) => {
-    setTempCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
-    );
-  };
-
-  const handleAddCategory = () => {
-    const trimmed = newCategory.trim();
-    if (trimmed && !tempCategories.includes(trimmed)) {
-      setTempCategories((prev) => [...prev, trimmed]);
-    }
-    setNewCategory('');
-  };
-
-  const handleSaveCategories = () => {
-    const updated = updateBookmark(currentBookmark.id, {
-      categories: tempCategories.length > 0 ? tempCategories : undefined,
-    });
-    if (updated) {
-      onUpdateBookmark(updated);
-    }
-    setEditingCategories(false);
   };
 
   return (
@@ -126,6 +87,20 @@ export default function Lightbox({
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Info button */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowInfo(true);
+          }}
+          className="absolute -top-10 left-0 p-2 bg-black/50 text-white hover:bg-black/70 hover:text-gray-300 rounded"
+          aria-label="Show info"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20 10 10 0 000-20z" />
           </svg>
         </button>
 
@@ -173,93 +148,116 @@ export default function Lightbox({
           </svg>
         </button>
 
-        {/* Image info */}
+        {/* Basic info */}
         <div className="mt-4 text-white text-center">
           {currentBookmark.title && (
             <h3 className="text-xl font-medium mb-1">{currentBookmark.title}</h3>
           )}
           <p className="text-sm text-gray-300">
-            {formatDate(currentBookmark.createdAt)}
-            {' • '}
             {currentIndex + 1} of {bookmarks.length}
           </p>
-          <a
-            href={currentBookmark.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block mt-1 text-sm text-blue-300 hover:underline break-all"
-          >
-            {currentBookmark.url}
-          </a>
-          {editingCategories ? (
-            <div className="text-sm text-gray-300 mt-1">
-              <div className="flex flex-wrap gap-2 justify-center mb-2">
-                {[...new Set([...allCategories, ...tempCategories])].map((cat) => (
-                  <label key={cat} className="inline-flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={tempCategories.includes(cat)}
-                      onChange={() => handleToggleCategory(cat)}
-                      className="mr-1"
-                    />
-                    {cat}
-                  </label>
-                ))}
-              </div>
-              <div className="mb-2">
-                <input
-                  type="text"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                  placeholder="New category"
-                  className="p-1 rounded bg-gray-800 text-white border border-gray-600"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddCategory}
-                  className="ml-2 px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded"
-                >
-                  Add
-                </button>
-              </div>
-              <div className="space-x-2">
-                <button
-                  onClick={handleSaveCategories}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setEditingCategories(false)}
-                  className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded text-sm"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <p className="text-sm text-gray-300 mt-1">
-                Categories: {currentBookmark.categories?.join(', ') || 'None'}
-              </p>
-              <div className="mt-2 space-x-2">
-                <button
-                  onClick={handleEdit}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                >
-                  Edit title
-                </button>
-                <button
-                  onClick={handleStartEditCategories}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-                >
-                  Edit categories
-                </button>
-              </div>
-            </>
-          )}
         </div>
       </div>
+
+      {showInfo && (
+        <div
+          className="absolute inset-0 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setShowInfo(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image information"
+        >
+          <div
+            className="bg-gray-800 text-white p-4 rounded w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-medium mb-4">Image Info</h2>
+            <div className="mb-2 flex items-center">
+              <span className="mr-2 font-medium">Title:</span>
+              <span className="mr-2">{truncate(currentBookmark.title || '')}</span>
+              <button
+                onClick={() => copyToClipboard(currentBookmark.title || '')}
+                className="p-1 bg-black/30 rounded hover:bg-black/50"
+                aria-label="Copy title"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 8h8a2 2 0 012 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V8z" />
+                </svg>
+              </button>
+            </div>
+            <div className="mb-2 flex items-center">
+              <span className="mr-2 font-medium">URL:</span>
+              <span className="mr-2">{truncate(currentBookmark.url)}</span>
+              <button
+                onClick={() => copyToClipboard(currentBookmark.url)}
+                className="p-1 bg-black/30 rounded hover:bg-black/50"
+                aria-label="Copy URL"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 8h8a2 2 0 012 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V8z" />
+                </svg>
+              </button>
+            </div>
+            <p className="mb-2 text-sm">Date: {formatDate(currentBookmark.createdAt)}</p>
+            <p className="mb-4 text-sm">
+              Categories: {currentBookmark.categories?.join(', ') || 'None'}
+            </p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setShowInfo(false);
+                  setEditing(true);
+                }}
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+              >
+                Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <EditBookmarkModal
+          bookmark={currentBookmark}
+          allCategories={allCategories}
+          onClose={() => setEditing(false)}
+          onSave={(updated) => {
+            onUpdateBookmark(updated);
+            setEditing(false);
+          }}
+        />
+      )}
     </div>
   );
 }
