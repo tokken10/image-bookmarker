@@ -15,6 +15,7 @@ export default function App() {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [lightboxBookmarks, setLightboxBookmarks] = useState<ImageBookmark[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const [showInputBar, setShowInputBar] = useState(false);
 
   // Load bookmarks on initial render
   useEffect(() => {
@@ -87,7 +88,23 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
       <Header />
       <main className="py-8">
-        <InputBar onAddBookmark={handleAddBookmark} selectedCategory={selectedCategory} />
+        {showInputBar ? (
+          <InputBar
+            onAddBookmark={handleAddBookmark}
+            selectedCategory={selectedCategory}
+            onClose={() => setShowInputBar(false)}
+          />
+        ) : (
+          <div className="w-full max-w-4xl mx-auto p-4">
+            <button
+              type="button"
+              onClick={() => setShowInputBar(true)}
+              className="px-4 py-2 rounded-md text-white font-medium bg-blue-600 hover:bg-blue-700 transition-colors"
+            >
+              + Add Bookmark
+            </button>
+          </div>
+        )}
         <CategorySelector
           categories={categories}
           selected={selectedCategory}
