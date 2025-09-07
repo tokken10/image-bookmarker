@@ -19,10 +19,25 @@ export default function Lightbox({
   const currentBookmark = bookmarks[currentIndex];
 
   const [isZoomed, setIsZoomed] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
     setIsZoomed(false);
   }, [currentIndex]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+    const interval = setInterval(() => {
+      onNext();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isPlaying, onNext]);
+
+  useEffect(() => {
+    if (isPlaying && currentIndex === bookmarks.length - 1) {
+      setIsPlaying(false);
+    }
+  }, [currentIndex, bookmarks.length, isPlaying]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -124,6 +139,36 @@ export default function Lightbox({
           <p className="text-sm text-gray-300">
             {currentIndex + 1} of {bookmarks.length}
           </p>
+        </div>
+
+        {/* Slideshow controls */}
+        <div className="mt-2 flex justify-center gap-4">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsPlaying(true);
+            }}
+            disabled={isPlaying}
+            className="p-2 bg-black/50 text-white hover:bg-black/70 rounded disabled:opacity-50"
+            aria-label="Play slideshow"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsPlaying(false);
+            }}
+            disabled={!isPlaying}
+            className="p-2 bg-black/50 text-white hover:bg-black/70 rounded disabled:opacity-50"
+            aria-label="Pause slideshow"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+            </svg>
+          </button>
         </div>
       </div>
 
