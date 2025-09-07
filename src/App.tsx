@@ -46,16 +46,6 @@ export default function App() {
     }
   }, [categories, selectedCategory]);
 
-  const handleUpdateBookmark = (updated: ImageBookmark) => {
-    setBookmarks(prev =>
-      prev.map(bookmark => (bookmark.id === updated.id ? updated : bookmark))
-    );
-    setLightboxBookmarks(prev =>
-      prev.map(bookmark => (bookmark.id === updated.id ? updated : bookmark))
-    );
-    setRefreshTrigger(prev => prev + 1);
-  };
-
   const handleImageClick = (index: number, items: ImageBookmark[]) => {
     setLightboxBookmarks(items);
     setLightboxIndex(index);
@@ -144,8 +134,6 @@ export default function App() {
           onClose={handleCloseLightbox}
           onNext={handleNextImage}
           onPrev={handlePrevImage}
-          onUpdateBookmark={handleUpdateBookmark}
-          allCategories={categories}
         />
       )}
       <ScrollToTopButton />
