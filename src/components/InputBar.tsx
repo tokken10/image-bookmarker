@@ -5,9 +5,10 @@ import { addBookmark } from '../lib/storage';
 interface InputBarProps {
   onAddBookmark: () => void;
   selectedCategory: string;
+  onClose: () => void;
 }
 
-export default function InputBar({ onAddBookmark, selectedCategory }: InputBarProps) {
+export default function InputBar({ onAddBookmark, selectedCategory, onClose }: InputBarProps) {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
@@ -60,6 +61,7 @@ export default function InputBar({ onAddBookmark, selectedCategory }: InputBarPr
       setSourceUrl('');
       setCategories(selectedCategory !== 'All' ? selectedCategory : '');
       onAddBookmark();
+      onClose();
     } catch (err) {
       console.error('Failed to load image:', err);
       setError('Failed to load image. Please check the URL and try again.');
@@ -138,17 +140,31 @@ export default function InputBar({ onAddBookmark, selectedCategory }: InputBarPr
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting || !url.trim()}
-          className={`px-4 py-2 rounded-md text-white font-medium ${
-            isSubmitting || !url.trim()
-              ? 'bg-blue-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700'
-          } transition-colors`}
-        >
-          {isSubmitting ? 'Adding...' : 'Add Bookmark'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={isSubmitting || !url.trim()}
+            className={`px-4 py-2 rounded-md text-white font-medium ${
+              isSubmitting || !url.trim()
+                ? 'bg-blue-400 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700'
+            } transition-colors`}
+          >
+            {isSubmitting ? 'Adding...' : 'Add Bookmark'}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className={`px-4 py-2 rounded-md text-white font-medium ${
+              isSubmitting
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gray-600 hover:bg-gray-700'
+            } transition-colors`}
+          >
+            Cancel
+          </button>
+        </div>
       </form>
     </div>
   );
