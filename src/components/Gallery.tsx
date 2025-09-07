@@ -165,58 +165,55 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
         </div>
       )}
 
-      <div className="mb-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') setSearch('');
-          }}
-          placeholder="Search images..."
-          className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-        />
-      </div>
-
       {bookmarks.length > 0 && (
-        <div className="mb-4 flex gap-2">
-          {selectMode ? (
-            <>
-              <button
-                type="button"
-                onClick={handleDeleteSelected}
-                disabled={selectedIds.length === 0}
-                className={`px-3 py-1 rounded-md text-white font-medium ${
-                  selectedIds.length === 0
-                    ? 'bg-red-300 cursor-not-allowed'
-                    : 'bg-red-600 hover:bg-red-700'
-                } transition-colors`}
-              >
-                Delete Selected ({selectedIds.length})
-              </button>
+        <>
+          <div className="mb-4">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSearch('');
+              }}
+              placeholder="Search images..."
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+            />
+          </div>
+
+          <div className="mb-4 flex gap-2">
+            {selectMode ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleDeleteSelected}
+                  disabled={selectedIds.length === 0}
+                  className={`px-3 py-1 rounded-md text-white font-medium ${
+                    selectedIds.length === 0
+                      ? 'bg-red-300 cursor-not-allowed'
+                      : 'bg-red-600 hover:bg-red-700'
+                  } transition-colors`}
+                >
+                  Delete Selected ({selectedIds.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleSelectMode}
+                  className="px-3 py-1 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 onClick={toggleSelectMode}
-                className="px-3 py-1 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
+                className="px-3 py-1 rounded-md text-white font-medium bg-red-600 hover:bg-red-700 transition-colors"
               >
-                Cancel
+                Select
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={toggleSelectMode}
-              disabled={bookmarks.length === 0}
-              className={`px-3 py-1 rounded-md text-white font-medium ${
-                bookmarks.length === 0
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-red-600 hover:bg-red-700'
-              } transition-colors`}
-            >
-              Select
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        </>
       )}
 
       {bookmarks.length === 0 ? (

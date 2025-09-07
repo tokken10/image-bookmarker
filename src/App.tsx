@@ -105,37 +105,31 @@ export default function App() {
             </button>
           </div>
         )}
-        <CategorySelector
-          categories={categories}
-          selected={selectedCategory}
-          onSelect={setSelectedCategory}
-        />
-        <div className="w-full max-w-4xl mx-auto p-4 flex gap-4">
-          <button
-            type="button"
-            onClick={handleShuffle}
-            disabled={bookmarks.length === 0}
-            className={`px-4 py-2 rounded-md text-white font-medium ${
-              bookmarks.length === 0
-                ? 'bg-purple-400 cursor-not-allowed'
-                : 'bg-purple-600 hover:bg-purple-700'
-            } transition-colors`}
-          >
-            Shuffle Images
-          </button>
-          <button
-            type="button"
-            onClick={handleReorder}
-            disabled={bookmarks.length === 0}
-            className={`px-4 py-2 rounded-md text-white font-medium ${
-              bookmarks.length === 0
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-gray-600 hover:bg-gray-700'
-            } transition-colors`}
-          >
-            Reorder Images
-          </button>
-        </div>
+        {bookmarks.length > 0 && (
+          <>
+            <CategorySelector
+              categories={categories}
+              selected={selectedCategory}
+              onSelect={setSelectedCategory}
+            />
+            <div className="w-full max-w-4xl mx-auto p-4 flex gap-4">
+              <button
+                type="button"
+                onClick={handleShuffle}
+                className="px-4 py-2 rounded-md text-white font-medium bg-purple-600 hover:bg-purple-700 transition-colors"
+              >
+                Shuffle Images
+              </button>
+              <button
+                type="button"
+                onClick={handleReorder}
+                className="px-4 py-2 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
+              >
+                Reorder Images
+              </button>
+            </div>
+          </>
+        )}
         <Gallery
           onImageClick={handleImageClick}
           refreshTrigger={refreshTrigger}
