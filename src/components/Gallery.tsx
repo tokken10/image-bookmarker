@@ -3,6 +3,7 @@ import type { ImageBookmark } from '../types';
 import { addBookmark, loadBookmarks, removeBookmark, removeBookmarks } from '../lib/storage';
 import { formatDate, isValidImageUrl } from '../utils/validation';
 import { searchImages } from '../utils/search';
+import EditBookmarkModal from './EditBookmarkModal';
 
 interface GalleryProps {
   onImageClick: (index: number, items: ImageBookmark[]) => void;
@@ -20,6 +21,7 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [editingBookmark, setEditingBookmark] = useState<ImageBookmark | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 250);
@@ -31,6 +33,14 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
     setBookmarks(savedBookmarks);
     setIsLoading(false);
   }, [refreshTrigger]);
+
+  const allCategories = useMemo(() => {
+    const set = new Set<string>();
+    bookmarks.forEach(b => {
+      b.categories?.forEach(cat => set.add(cat));
+    });
+    return Array.from(set);
+  }, [bookmarks]);
 
   const handleRemove = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -313,6 +323,25 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
                       </button>
 
                       <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingBookmark(bookmark);
+                          setInfoVisibleId(null);
+                        }}
+                        className={`absolute top-2 right-10 p-1.5 bg-blue-500 text-white rounded-full transition-opacity z-20 hover:bg-blue-600 ${
+                          infoVisibleId === bookmark.id
+                            ? 'opacity-100'
+                            : 'opacity-0 pointer-events-none'
+                        }`}
+                        aria-label="Edit bookmark"
+                        title="Edit bookmark"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M16.768 3.768a2 2 0 112.828 2.828L7 19.5 3 21l1.5-4L16.768 3.768z" />
+                        </svg>
+                      </button>
+
+                      <button
                         onClick={(e) => handleRemove(e, bookmark.id)}
                         className={`absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full transition-opacity z-20 hover:bg-red-600 ${
                           infoVisibleId === bookmark.id
@@ -333,6 +362,21 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
             );
           })}
         </div>
+      )}
+
+      {editingBookmark && (
+        <EditBookmarkModal
+          bookmark={editingBookmark}
+          allCategories={allCategories}
+          onClose={() => setEditingBookmark(null)}
+          onSave={(updated) => {
+            setBookmarks(prev =>
+              prev.map(b => (b.id === updated.id ? updated : b))
+            );
+            setEditingBookmark(null);
+            onAddBookmark();
+          }}
+        />
       )}
     </div>
   );
