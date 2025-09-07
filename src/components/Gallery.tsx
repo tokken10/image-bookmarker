@@ -313,7 +313,7 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
                           e.stopPropagation();
                           setInfoVisibleId(prev => (prev === bookmark.id ? null : bookmark.id));
                         }}
-                        className="absolute bottom-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                        className="absolute top-2 left-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-20"
                         aria-label="Show info"
                         title="Show info"
                       >
