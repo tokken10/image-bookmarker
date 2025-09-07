@@ -49,6 +49,11 @@ export default function EditBookmarkModal({ bookmark, allCategories, onClose, on
         className="bg-gray-800 text-white p-4 rounded w-full max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
+        <img
+          src={bookmark.url}
+          alt={bookmark.title || 'Bookmark image'}
+          className="mb-4 w-full max-h-64 object-contain rounded"
+        />
         <h2 className="text-lg font-medium mb-4">Edit Bookmark</h2>
         <div className="mb-4">
           <label className="block mb-1 text-sm">Title</label>
