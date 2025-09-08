@@ -1,4 +1,5 @@
-import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
 import type { ImageBookmark } from '../types';
 import { addBookmark, loadBookmarks, removeBookmark, removeBookmarks } from '../lib/storage';
 import { formatDate, isValidImageUrl } from '../utils/validation';
@@ -31,7 +32,6 @@ export default function Gallery({
   const [infoVisibleId, setInfoVisibleId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [editingBookmark, setEditingBookmark] = useState<ImageBookmark | null>(null);
