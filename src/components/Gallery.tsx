@@ -31,6 +31,7 @@ export default function Gallery({
   const [infoVisibleId, setInfoVisibleId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [editingBookmark, setEditingBookmark] = useState<ImageBookmark | null>(null);
@@ -180,8 +181,10 @@ export default function Gallery({
 
       {bookmarks.length > 0 && (
         <>
+
           {showSearch && (
             <div className="mb-4">
+
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -193,6 +196,7 @@ export default function Gallery({
                   placeholder="Search images..."
                   className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
                 />
+
                 <button
                   type="button"
                   onClick={() => {
