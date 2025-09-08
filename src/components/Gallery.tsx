@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
 import type { ImageBookmark } from '../types';
 import { addBookmark, loadBookmarks, removeBookmark, removeBookmarks } from '../lib/storage';
 import { formatDate, isValidImageUrl } from '../utils/validation';
@@ -10,14 +10,26 @@ interface GalleryProps {
   refreshTrigger: number;
   onAddBookmark: () => void;
   selectedCategory: string;
+  selectMode: boolean;
+  setSelectMode: Dispatch<SetStateAction<boolean>>;
+  showSearch: boolean;
+  setShowSearch: Dispatch<SetStateAction<boolean>>;
 }
 
-export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, selectedCategory }: GalleryProps) {
+export default function Gallery({
+  onImageClick,
+  refreshTrigger,
+  onAddBookmark,
+  selectedCategory,
+  selectMode,
+  setSelectMode,
+  showSearch,
+  setShowSearch,
+}: GalleryProps) {
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [infoVisibleId, setInfoVisibleId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState('');
@@ -52,11 +64,12 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
     }
   };
 
-  const toggleSelectMode = () => {
-    setSelectMode(prev => !prev);
-    setSelectedIds([]);
-    setInfoVisibleId(null);
-  };
+  useEffect(() => {
+    if (!selectMode) {
+      setSelectedIds([]);
+      setInfoVisibleId(null);
+    }
+  }, [selectMode]);
 
   const toggleSelection = (id: string) => {
     setSelectedIds(prev =>
@@ -168,8 +181,10 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
 
       {bookmarks.length > 0 && (
         <>
-          <div className="mb-4">
-            {showSearch ? (
+
+          {showSearch && (
+            <div className="mb-4">
+
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -181,6 +196,7 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
                   placeholder="Search images..."
                   className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
                 />
+
                 <button
                   type="button"
                   onClick={() => {
@@ -192,50 +208,32 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
                   Close
                 </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowSearch(true)}
-                className="px-3 py-2 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
-              >
-                Search Images
-              </button>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="mb-4 flex gap-2">
-            {selectMode ? (
-              <>
-                <button
-                  type="button"
-                  onClick={handleDeleteSelected}
-                  disabled={selectedIds.length === 0}
-                  className={`px-3 py-1 rounded-md text-white font-medium ${
-                    selectedIds.length === 0
-                      ? 'bg-red-300 cursor-not-allowed'
-                      : 'bg-red-600 hover:bg-red-700'
-                  } transition-colors`}
-                >
-                  Delete Selected ({selectedIds.length})
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleSelectMode}
-                  className="px-3 py-1 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
+          {selectMode && (
+            <div className="mb-4 flex gap-2">
               <button
                 type="button"
-                onClick={toggleSelectMode}
-                className="px-3 py-1 rounded-md text-white font-medium bg-red-600 hover:bg-red-700 transition-colors"
+                onClick={handleDeleteSelected}
+                disabled={selectedIds.length === 0}
+                className={`px-3 py-1 rounded-md text-white font-medium ${
+                  selectedIds.length === 0
+                    ? 'bg-red-300 cursor-not-allowed'
+                    : 'bg-red-600 hover:bg-red-700'
+                } transition-colors`}
               >
-                Select
+                Delete Selected ({selectedIds.length})
               </button>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={() => setSelectMode(false)}
+                className="px-3 py-1 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </>
       )}
 

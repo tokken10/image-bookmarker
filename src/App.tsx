@@ -16,6 +16,8 @@ export default function App() {
   const [lightboxBookmarks, setLightboxBookmarks] = useState<ImageBookmark[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [showInputBar, setShowInputBar] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
 
   // Load bookmarks on initial render
   useEffect(() => {
@@ -115,6 +117,13 @@ export default function App() {
             <div className="w-full max-w-4xl mx-auto p-4 flex gap-4">
               <button
                 type="button"
+                onClick={() => setShowSearch(true)}
+                className="px-4 py-2 rounded-md text-white font-medium bg-blue-600 hover:bg-blue-700 transition-colors"
+              >
+                Search Images
+              </button>
+              <button
+                type="button"
                 onClick={handleShuffle}
                 className="px-4 py-2 rounded-md text-white font-medium bg-purple-600 hover:bg-purple-700 transition-colors"
               >
@@ -127,6 +136,15 @@ export default function App() {
               >
                 Reorder Images
               </button>
+              {!selectMode && (
+                <button
+                  type="button"
+                  onClick={() => setSelectMode(true)}
+                  className="px-4 py-2 rounded-md text-white font-medium bg-red-600 hover:bg-red-700 transition-colors"
+                >
+                  Select
+                </button>
+              )}
             </div>
           </>
         )}
@@ -135,6 +153,10 @@ export default function App() {
           refreshTrigger={refreshTrigger}
           onAddBookmark={handleAddBookmark}
           selectedCategory={selectedCategory}
+          selectMode={selectMode}
+          setSelectMode={setSelectMode}
+          showSearch={showSearch}
+          setShowSearch={setShowSearch}
         />
       </main>
 
