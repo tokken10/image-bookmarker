@@ -19,6 +19,7 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
   const [isDragging, setIsDragging] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showSearch, setShowSearch] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [editingBookmark, setEditingBookmark] = useState<ImageBookmark | null>(null);
@@ -168,16 +169,38 @@ export default function Gallery({ onImageClick, refreshTrigger, onAddBookmark, s
       {bookmarks.length > 0 && (
         <>
           <div className="mb-4">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setSearch('');
-              }}
-              placeholder="Search images..."
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-            />
+            {showSearch ? (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setSearch('');
+                  }}
+                  placeholder="Search images..."
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('');
+                    setShowSearch(false);
+                  }}
+                  className="px-3 py-2 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowSearch(true)}
+                className="px-3 py-2 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
+              >
+                Search Images
+              </button>
+            )}
           </div>
 
           <div className="mb-4 flex gap-2">
