@@ -314,7 +314,9 @@ export default function Gallery({
                       >
                         <div className="w-full p-2 bg-gradient-to-t from-black/80 to-transparent text-white">
                           <div className="flex items-start">
-                            <h3 className="font-medium flex-1 truncate">
+                            <h3 className="font-medium flex-1 max-w-[75%] truncate">
+
+
                               {bookmark.title || 'Untitled'}
                             </h3>
                             <button
@@ -362,7 +364,9 @@ export default function Gallery({
                               href={bookmark.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-xs text-blue-300 hover:underline flex-1 break-all"
+                              className="text-xs text-blue-300 hover:underline flex-1 max-w-[75%] break-all"
+
+
                             >
                               {bookmark.url}
                             </a>
