@@ -237,14 +237,7 @@ export default function Gallery({
         </>
       )}
 
-      {bookmarks.length === 0 ? (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">No bookmarks yet</h3>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Add an image URL or drag and drop an image to get started!
-          </p>
-        </div>
-      ) : displayedBookmarks.length === 0 ? (
+      {displayedBookmarks.length === 0 ? (
         <div className="text-center py-12">
           <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">
             {debouncedSearch ? 'No results' : 'No bookmarks in this category'}
