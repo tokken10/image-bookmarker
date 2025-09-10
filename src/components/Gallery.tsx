@@ -313,16 +313,96 @@ export default function Gallery({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="w-full p-2 bg-gradient-to-t from-black/80 to-transparent text-white">
-                          <h3 className="font-medium truncate">{bookmark.title || 'Untitled'}</h3>
+                          <div className="flex items-start">
+                            <h3 className="font-medium flex-1 truncate">
+                              {bookmark.title || 'Untitled'}
+                            </h3>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void navigator.clipboard.writeText(
+                                  bookmark.title || 'Untitled'
+                                );
+                              }}
+                              className="ml-2 p-1 hover:text-blue-300"
+                              aria-label="Copy title"
+                              title="Copy title"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <rect
+                                  x="9"
+                                  y="9"
+                                  width="12"
+                                  height="12"
+                                  rx="2"
+                                  ry="2"
+                                  strokeWidth={2}
+                                />
+                                <rect
+                                  x="3"
+                                  y="3"
+                                  width="12"
+                                  height="12"
+                                  rx="2"
+                                  ry="2"
+                                  strokeWidth={2}
+                                />
+                              </svg>
+                            </button>
+                          </div>
                           <p className="text-xs opacity-80">{formatDate(bookmark.createdAt)}</p>
-                          <a
-                            href={bookmark.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-300 hover:underline break-all mt-1"
-                          >
-                            {bookmark.url}
-                          </a>
+                          <div className="flex items-start mt-1">
+                            <a
+                              href={bookmark.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-300 hover:underline flex-1 break-all"
+                            >
+                              {bookmark.url}
+                            </a>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void navigator.clipboard.writeText(bookmark.url);
+                              }}
+                              className="ml-2 p-1 text-white hover:text-blue-300"
+                              aria-label="Copy URL"
+                              title="Copy URL"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <rect
+                                  x="9"
+                                  y="9"
+                                  width="12"
+                                  height="12"
+                                  rx="2"
+                                  ry="2"
+                                  strokeWidth={2}
+                                />
+                                <rect
+                                  x="3"
+                                  y="3"
+                                  width="12"
+                                  height="12"
+                                  rx="2"
+                                  ry="2"
+                                  strokeWidth={2}
+                                />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
 
