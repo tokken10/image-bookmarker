@@ -5,6 +5,7 @@ import { addBookmark, loadBookmarks, removeBookmark, removeBookmarks } from '../
 import { formatDate, isValidImageUrl } from '../utils/validation';
 import { searchImages } from '../utils/search';
 import EditBookmarkModal from './EditBookmarkModal';
+import { defaultImages } from '../data/defaultImages';
 
 interface GalleryProps {
   onImageClick: (index: number, items: ImageBookmark[]) => void;
@@ -238,11 +239,31 @@ export default function Gallery({
       )}
 
       {bookmarks.length === 0 ? (
-        <div className="text-center py-12">
-          <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">No bookmarks yet</h3>
-          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            Add an image URL or drag and drop an image to get started!
-          </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {defaultImages.map((img) => (
+            <div
+              key={img.url}
+              className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow"
+            >
+              <img
+                src={img.url}
+                alt={img.title}
+                className="w-full h-48 object-cover"
+                loading="lazy"
+              />
+              <div className="p-4">
+                <h3 className="font-medium text-gray-800 dark:text-gray-200">
+                  {img.title}
+                </h3>
+                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+                  {img.description}
+                </p>
+                <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                  Categories: {img.categories.join(', ')}
+                </p>
+              </div>
+            </div>
+          ))}
         </div>
       ) : displayedBookmarks.length === 0 ? (
         <div className="text-center py-12">
