@@ -5,6 +5,7 @@ import { addBookmark, loadBookmarks, removeBookmark, removeBookmarks } from '../
 import { formatDate, isValidImageUrl } from '../utils/validation';
 import { searchImages } from '../utils/search';
 import EditBookmarkModal from './EditBookmarkModal';
+import { defaultImages } from '../data/defaultImages';
 
 interface GalleryProps {
   onImageClick: (index: number, items: ImageBookmark[]) => void;
@@ -237,7 +238,10 @@ export default function Gallery({
         </>
       )}
 
+
       {displayedBookmarks.length === 0 ? (
+
+
         <div className="text-center py-12">
           <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">
             {debouncedSearch ? 'No results' : 'No bookmarks in this category'}
