@@ -5,7 +5,6 @@ import { addBookmark, loadBookmarks, removeBookmark, removeBookmarks } from '../
 import { formatDate, isValidImageUrl } from '../utils/validation';
 import { searchImages } from '../utils/search';
 import EditBookmarkModal from './EditBookmarkModal';
-import { defaultImages } from '../data/defaultImages';
 
 interface GalleryProps {
   onImageClick: (index: number, items: ImageBookmark[]) => void;
