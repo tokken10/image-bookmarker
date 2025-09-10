@@ -1,5 +1,6 @@
 import type { ImageBookmark } from '../types';
 import { buildSearchTokens } from '../utils/search';
+import { defaultImages } from '../data/defaultImages';
 
 const STORAGE_KEY = 'imageBookmarks:v1';
 
@@ -25,6 +26,21 @@ export function loadBookmarks(): ImageBookmark[] {
     });
     if (changed) {
       saveBookmarks(normalized);
+    }
+    if (normalized.length === 0) {
+      const defaults: ImageBookmark[] = defaultImages.map((img, index) => {
+        const bookmark: ImageBookmark = {
+          id: crypto.randomUUID(),
+          url: img.url,
+          title: img.title,
+          categories: img.categories,
+          createdAt: Date.now() + index,
+        };
+        bookmark.searchTokens = buildSearchTokens(bookmark);
+        return bookmark;
+      });
+      saveBookmarks(defaults);
+      return defaults;
     }
     return normalized;
   } catch (error) {
