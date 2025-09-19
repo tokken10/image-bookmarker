@@ -8,6 +8,8 @@ import Lightbox from './components/Lightbox';
 import CategorySelector from './components/CategorySelector';
 import ScrollToTopButton from './components/ScrollToTopButton';
 
+const CUSTOM_CATEGORIES_KEY = 'imageBookmarks:customCategories:v1';
+
 export default function App() {
   console.log('App component rendering...');
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
@@ -18,6 +20,7 @@ export default function App() {
   const [showInputBar, setShowInputBar] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
 
   // Load bookmarks on initial render
   useEffect(() => {
@@ -31,23 +34,69 @@ export default function App() {
     }
   }, [refreshTrigger]);
 
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          const sanitized = parsed
+            .map((cat) => (typeof cat === 'string' ? cat.trim() : ''))
+            .filter((cat): cat is string => Boolean(cat));
+          const unique = Array.from(new Set(sanitized));
+          setCustomCategories(unique);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load custom categories:', error);
+    }
+  }, []);
+
+  const persistCustomCategories = (categories: string[]) => {
+    const unique = Array.from(new Set(categories));
+    setCustomCategories(unique);
+    try {
+      localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(unique));
+    } catch (error) {
+      console.error('Failed to save custom categories:', error);
+    }
+  };
+
   const handleAddBookmark = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
   const categories = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(customCategories);
     bookmarks.forEach(b => {
       b.categories?.forEach((cat) => set.add(cat));
     });
     return Array.from(set);
-  }, [bookmarks]);
+  }, [bookmarks, customCategories]);
 
   useEffect(() => {
     if (selectedCategory !== 'All' && !categories.includes(selectedCategory)) {
       setSelectedCategory('All');
     }
   }, [categories, selectedCategory]);
+
+  const handleAddCategory = () => {
+    const name = window.prompt('Enter a new category name:');
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    const normalized = trimmed.toLowerCase();
+    const existing = categories.find((cat) => cat.toLowerCase() === normalized);
+    if (existing) {
+      setSelectedCategory(existing);
+      return;
+    }
+
+    const updated = [...customCategories, trimmed];
+    persistCustomCategories(updated);
+    setSelectedCategory(trimmed);
+  };
 
   const handleImageClick = (index: number, items: ImageBookmark[]) => {
     setLightboxBookmarks(items);
@@ -113,6 +162,7 @@ export default function App() {
               categories={categories}
               selected={selectedCategory}
               onSelect={setSelectedCategory}
+              onAddCategory={handleAddCategory}
             />
             <div className="w-full max-w-4xl mx-auto p-4 flex gap-4">
               <button

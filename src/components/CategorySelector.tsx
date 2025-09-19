@@ -2,12 +2,25 @@ interface CategorySelectorProps {
   categories: string[];
   selected: string;
   onSelect: (category: string) => void;
+  onAddCategory: () => void;
 }
 
-export default function CategorySelector({ categories, selected, onSelect }: CategorySelectorProps) {
+export default function CategorySelector({ categories, selected, onSelect, onAddCategory }: CategorySelectorProps) {
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
-      <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Filter by category</p>
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by category</p>
+        <button
+          type="button"
+          onClick={onAddCategory}
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-blue-600 text-blue-600 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-gray-800"
+          aria-label="Add new category"
+        >
+          <span aria-hidden="true" className="text-lg leading-none">
+            +
+          </span>
+        </button>
+      </div>
       <div className="flex gap-2 overflow-x-auto">
         <button
           type="button"
