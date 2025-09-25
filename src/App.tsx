@@ -7,6 +7,7 @@ import Gallery from './components/Gallery';
 import Lightbox from './components/Lightbox';
 import CategorySelector from './components/CategorySelector';
 import ScrollToTopButton from './components/ScrollToTopButton';
+import ScrollToBottomButton from './components/ScrollToBottomButton';
 
 const CUSTOM_CATEGORIES_KEY = 'imageBookmarks:customCategories:v1';
 
@@ -220,6 +221,7 @@ export default function App() {
         />
       )}
       <ScrollToTopButton />
+      <ScrollToBottomButton />
     </div>
   );
 }
