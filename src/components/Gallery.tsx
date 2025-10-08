@@ -27,6 +27,8 @@ export default function Gallery({
   showSearch,
   setShowSearch,
 }: GalleryProps) {
+  const ITEMS_PER_PAGE = 24;
+  const PAGINATION_STATE_KEY = 'imageBookmarks:paginationState:v1';
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [infoVisibleId, setInfoVisibleId] = useState<string | null>(null);
@@ -35,6 +37,12 @@ export default function Gallery({
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [editingBookmark, setEditingBookmark] = useState<ImageBookmark | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const paginationKey = useMemo(() => {
+    const normalizedSearch = debouncedSearch.trim().toLowerCase();
+    return `${selectedCategory}::${normalizedSearch}`;
+  }, [selectedCategory, debouncedSearch]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 250);
@@ -46,6 +54,36 @@ export default function Gallery({
     setBookmarks(savedBookmarks);
     setIsLoading(false);
   }, [refreshTrigger]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(PAGINATION_STATE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as Record<string, number>;
+        const savedPage = parsed[paginationKey];
+        if (typeof savedPage === 'number' && savedPage >= 1) {
+          setCurrentPage(savedPage);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load pagination state:', error);
+    }
+    setCurrentPage(1);
+  }, [paginationKey]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(PAGINATION_STATE_KEY);
+      const parsed = stored ? (JSON.parse(stored) as Record<string, number>) : {};
+      if (parsed[paginationKey] !== currentPage) {
+        parsed[paginationKey] = currentPage;
+        localStorage.setItem(PAGINATION_STATE_KEY, JSON.stringify(parsed));
+      }
+    } catch (error) {
+      console.error('Failed to save pagination state:', error);
+    }
+  }, [paginationKey, currentPage]);
 
   const allCategories = useMemo(() => {
     const set = new Set<string>();
@@ -157,6 +195,50 @@ export default function Gallery({
 
   const displayedBookmarks = searchResults.map((r) => r.bookmark);
 
+  const totalBookmarks = displayedBookmarks.length;
+  const totalPages = Math.max(1, Math.ceil(totalBookmarks / ITEMS_PER_PAGE));
+
+  useEffect(() => {
+    setCurrentPage(prev => {
+      const safePage = Math.min(Math.max(prev, 1), totalPages);
+      return safePage === prev ? prev : safePage;
+    });
+  }, [totalPages]);
+
+  const paginatedBookmarks = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return displayedBookmarks.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [displayedBookmarks, currentPage]);
+
+  const createPageNumbers = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const pages: Array<number | string> = [1];
+    const left = Math.max(2, currentPage - 1);
+    const right = Math.min(totalPages - 1, currentPage + 1);
+
+    if (left > 2) {
+      pages.push('left-ellipsis');
+    }
+
+    for (let page = left; page <= right; page += 1) {
+      pages.push(page);
+    }
+
+    if (right < totalPages - 1) {
+      pages.push('right-ellipsis');
+    }
+
+    pages.push(totalPages);
+
+    return pages;
+  };
+
+  const startIndex = totalBookmarks === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, totalBookmarks);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -238,7 +320,7 @@ export default function Gallery({
       )}
 
 
-      {displayedBookmarks.length === 0 ? (
+      {totalBookmarks === 0 ? (
 
 
         <div className="text-center py-12">
@@ -248,7 +330,7 @@ export default function Gallery({
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {displayedBookmarks.map((bookmark, index) => {
+          {paginatedBookmarks.map((bookmark, index) => {
             const isSelected = selectedIds.includes(bookmark.id);
             return (
               <div
@@ -256,7 +338,7 @@ export default function Gallery({
                 onClick={() =>
                   selectMode
                     ? toggleSelection(bookmark.id)
-                    : onImageClick(index, displayedBookmarks)
+                    : onImageClick(index, paginatedBookmarks)
                 }
                 className={`group relative aspect-[4/3] rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-transform duration-200 cursor-pointer bg-gray-100 dark:bg-gray-800 hover:z-10 hover:scale-105 ${
                   isSelected ? 'ring-4 ring-blue-500' : ''
@@ -269,7 +351,7 @@ export default function Gallery({
                     if (selectMode) {
                       toggleSelection(bookmark.id);
                     } else {
-                      onImageClick(index, displayedBookmarks);
+                      onImageClick(index, paginatedBookmarks);
                     }
                   }
                 }}
@@ -459,6 +541,70 @@ export default function Gallery({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {totalBookmarks > 0 && totalPages > 1 && (
+        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Showing {startIndex}-{endIndex} of {totalBookmarks}
+          </p>
+          <div className="flex items-center gap-2 self-center">
+            <button
+              type="button"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                currentPage === 1
+                  ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+              }`}
+            >
+              Previous
+            </button>
+            <div className="flex items-center gap-1">
+              {createPageNumbers().map((page, index) => {
+                if (typeof page === 'string') {
+                  return (
+                    <span
+                      key={`${page}-${index}`}
+                      className="px-2 text-sm text-gray-500 dark:text-gray-400"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white shadow'
+                        : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+                    }`}
+                    aria-current={currentPage === page ? 'page' : undefined}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                currentPage === totalPages
+                  ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+              }`}
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
 
