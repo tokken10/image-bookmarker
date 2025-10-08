@@ -67,6 +67,14 @@ export function addBookmark(
     createdAt: Date.now(),
   };
 
+  if (!newBookmark.mediaType) {
+    if (newBookmark.mimeType?.startsWith('video/')) {
+      newBookmark.mediaType = 'video';
+    } else {
+      newBookmark.mediaType = 'image';
+    }
+  }
+
   if (newBookmark.categories) {
     newBookmark.categories = newBookmark.categories
       .map((c) => c.trim())

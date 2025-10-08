@@ -2,9 +2,57 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ImageBookmark } from '../types';
 import { addBookmark, loadBookmarks, removeBookmark, removeBookmarks } from '../lib/storage';
-import { formatDate, isValidImageUrl } from '../utils/validation';
+import { formatDate, isValidImageUrl, isVideoBookmark } from '../utils/validation';
 import { searchImages } from '../utils/search';
 import EditBookmarkModal from './EditBookmarkModal';
+
+type SupportedMedia = {
+  mimeType: string;
+  mediaType: 'image' | 'video';
+};
+
+const MAX_FILE_SIZE_BYTES = 30 * 1024 * 1024; // 30 MB
+
+const MIME_TYPE_LOOKUP: Record<string, SupportedMedia> = {
+  'image/jpeg': { mimeType: 'image/jpeg', mediaType: 'image' },
+  'image/png': { mimeType: 'image/png', mediaType: 'image' },
+  'image/gif': { mimeType: 'image/gif', mediaType: 'image' },
+  'image/webp': { mimeType: 'image/webp', mediaType: 'image' },
+  'video/mp4': { mimeType: 'video/mp4', mediaType: 'video' },
+  'video/quicktime': { mimeType: 'video/quicktime', mediaType: 'video' },
+  'video/webm': { mimeType: 'video/webm', mediaType: 'video' },
+};
+
+const EXTENSION_LOOKUP: Record<string, SupportedMedia> = {
+  jpg: MIME_TYPE_LOOKUP['image/jpeg'],
+  jpeg: MIME_TYPE_LOOKUP['image/jpeg'],
+  png: MIME_TYPE_LOOKUP['image/png'],
+  gif: MIME_TYPE_LOOKUP['image/gif'],
+  webp: MIME_TYPE_LOOKUP['image/webp'],
+  mp4: MIME_TYPE_LOOKUP['video/mp4'],
+  mov: MIME_TYPE_LOOKUP['video/quicktime'],
+  webm: MIME_TYPE_LOOKUP['video/webm'],
+};
+
+const getFileInfo = (file: File): SupportedMedia | null => {
+  const type = file.type?.toLowerCase();
+  if (type && MIME_TYPE_LOOKUP[type]) {
+    return MIME_TYPE_LOOKUP[type];
+  }
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  if (extension && EXTENSION_LOOKUP[extension]) {
+    return EXTENSION_LOOKUP[extension];
+  }
+  return null;
+};
+
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
 
 interface GalleryProps {
   onImageClick: (index: number, items: ImageBookmark[]) => void;
@@ -38,6 +86,7 @@ export default function Gallery({
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [editingBookmark, setEditingBookmark] = useState<ImageBookmark | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [dropError, setDropError] = useState<string | null>(null);
 
   const paginationKey = useMemo(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
@@ -139,6 +188,7 @@ export default function Gallery({
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(true);
+    setDropError(null);
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
@@ -150,9 +200,11 @@ export default function Gallery({
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragging(false);
+    setDropError(null);
 
     const droppedUrl = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
     const newItems: ImageBookmark[] = [];
+    const errors: string[] = [];
 
     if (droppedUrl && isValidImageUrl(droppedUrl)) {
       const bookmark = addBookmark({
@@ -162,25 +214,40 @@ export default function Gallery({
       newItems.push(bookmark);
     }
 
-    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+    const files = Array.from(e.dataTransfer.files);
     for (const file of files) {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.readAsDataURL(file);
-      });
-      const bookmark = addBookmark({
-        url: dataUrl,
-        title: file.name,
-        categories: selectedCategory !== 'All' ? [selectedCategory] : undefined,
-      });
-      newItems.push(bookmark);
+      const info = getFileInfo(file);
+      if (!info) {
+        errors.push(`${file.name} is not a supported file type.`);
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        errors.push(`${file.name} exceeds the 30 MB file size limit.`);
+        continue;
+      }
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const bookmark = addBookmark({
+          url: dataUrl,
+          title: file.name,
+          mimeType: info.mimeType,
+          mediaType: info.mediaType,
+          categories: selectedCategory !== 'All' ? [selectedCategory] : undefined,
+        });
+        newItems.push(bookmark);
+      } catch (error) {
+        console.error('Failed to read file:', error);
+        errors.push(`Something went wrong while reading ${file.name}.`);
+      }
     }
 
     if (newItems.length > 0) {
       setBookmarks(prev => [...newItems, ...prev]);
       onAddBookmark();
+    }
+
+    if (errors.length > 0) {
+      setDropError(errors.join(' '));
     }
   };
 
@@ -257,7 +324,13 @@ export default function Gallery({
     >
       {isDragging && (
         <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 border-4 border-dashed border-blue-500 flex items-center justify-center text-gray-700 dark:text-gray-300 z-20">
-          Drop images here
+          Drop images, GIFs, or videos here
+        </div>
+      )}
+
+      {dropError && (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200">
+          {dropError}
         </div>
       )}
 
@@ -368,17 +441,29 @@ export default function Gallery({
                       />
                     </div>
                   )}
-                  <img
-                    src={bookmark.url}
-                    alt={bookmark.title || 'Bookmarked image'}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.onerror = null;
-                      target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22600%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20600%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_18e9f2f9c5f%20text%20%7B%20fill%3A%23AAAAAA%3Bfont-weight%3Abold%3Bfont-family%3AArial%2C%20Helvetica%2C%20Open%20Sans%2C%20sans-serif%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_18e9f2f9c5f%22%3E%3Crect%20width%3D%22800%22%20height%3D%22600%22%20fill%3D%22%23EEEEEE%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22285.921875%22%20y%3D%22317.7%22%3EFailed%20to%20load%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E';
-                    }}
-                  />
+                  {isVideoBookmark(bookmark) ? (
+                    <video
+                      src={bookmark.url}
+                      className="h-full w-full object-cover"
+                      controls
+                      playsInline
+                      preload="metadata"
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  ) : (
+                    <img
+                      src={bookmark.url}
+                      alt={bookmark.title || 'Bookmarked image'}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.onerror = null;
+                        target.src = 'data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22800%22%20height%3D%22600%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20800%20600%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3Cstyle%20type%3D%22text%2Fcss%22%3E%23holder_18e9f2f9c5f%20text%20%7B%20fill%3A%23AAAAAA%3Bfont-weight%3Abold%3Bfont-family%3AArial%2C%20Helvetica%2C%20Open%20Sans%2C%20sans-serif%2C%20monospace%3Bfont-size%3A40pt%20%7D%20%3C%2Fstyle%3E%3C%2Fdefs%3E%3Cg%20id%3D%22holder_18e9f2f9c5f%22%3E%3Crect%20width%3D%22800%22%20height%3D%22600%22%20fill%3D%22%23EEEEEE%22%3E%3C%2Frect%3E%3Cg%3E%3Ctext%20x%3D%22285.921875%22%20y%3D%22317.7%22%3EFailed%20to%20load%3C%2Ftext%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E';
+                      }}
+                    />
+                  )}
 
                   {!selectMode && (
                     <>

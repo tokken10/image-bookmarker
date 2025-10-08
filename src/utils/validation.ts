@@ -1,3 +1,5 @@
+import type { ImageBookmark } from '../types';
+
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
 
 export function isValidImageUrl(url: string): boolean {
@@ -23,4 +25,14 @@ export function formatDate(timestamp: number): string {
     month: 'short',
     day: 'numeric',
   });
+}
+
+export function isVideoBookmark(bookmark: ImageBookmark): boolean {
+  if (bookmark.mediaType === 'video') {
+    return true;
+  }
+  if (bookmark.mimeType?.startsWith('video/')) {
+    return true;
+  }
+  return bookmark.url.startsWith('data:video/');
 }
