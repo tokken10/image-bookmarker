@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ImageBookmark } from '../types';
+import { isVideoBookmark } from '../utils/validation';
 
 interface LightboxProps {
   bookmarks: ImageBookmark[];
@@ -17,6 +18,7 @@ export default function Lightbox({
   onPrev,
 }: LightboxProps) {
   const currentBookmark = bookmarks[currentIndex];
+  const isVideo = currentBookmark ? isVideoBookmark(currentBookmark) : false;
 
   const [isZoomed, setIsZoomed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -24,6 +26,12 @@ export default function Lightbox({
   useEffect(() => {
     setIsZoomed(false);
   }, [currentIndex]);
+
+  useEffect(() => {
+    if (isVideo) {
+      setIsZoomed(false);
+    }
+  }, [isVideo]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -89,17 +97,28 @@ export default function Lightbox({
 
         {/* Image container */}
         <div className="flex-1 flex items-center justify-center">
-          <img
-            src={currentBookmark.url}
-            alt={currentBookmark.title || 'Bookmarked image'}
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsZoomed((z) => !z);
-            }}
-            className={`max-w-full max-h-[70vh] object-contain transition-transform duration-300 origin-center ${
-              isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'
-            }`}
-          />
+          {isVideo ? (
+            <video
+              src={currentBookmark.url}
+              controls
+              playsInline
+              className="max-h-[70vh] w-full max-w-full"
+            >
+              Your browser does not support the video tag.
+            </video>
+          ) : (
+            <img
+              src={currentBookmark.url}
+              alt={currentBookmark.title || 'Bookmarked image'}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsZoomed((z) => !z);
+              }}
+              className={`max-w-full max-h-[70vh] object-contain transition-transform duration-300 origin-center ${
+                isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'
+              }`}
+            />
+          )}
         </div>
 
         {/* Navigation buttons */}

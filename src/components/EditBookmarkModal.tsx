@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ImageBookmark } from '../types';
 import { updateBookmark } from '../lib/storage';
+import { isVideoBookmark } from '../utils/validation';
 
 interface EditBookmarkModalProps {
   bookmark: ImageBookmark;
@@ -13,6 +14,7 @@ export default function EditBookmarkModal({ bookmark, allCategories, onClose, on
   const [title, setTitle] = useState(bookmark.title || '');
   const [categories, setCategories] = useState<string[]>(bookmark.categories || []);
   const [newCategory, setNewCategory] = useState('');
+  const isVideo = isVideoBookmark(bookmark);
 
   const toggleCategory = (cat: string) => {
     setCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
@@ -49,11 +51,22 @@ export default function EditBookmarkModal({ bookmark, allCategories, onClose, on
         className="bg-gray-800 text-white p-4 rounded w-full max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
-        <img
-          src={bookmark.url}
-          alt={bookmark.title || 'Bookmark image'}
-          className="mb-4 w-full max-h-64 object-contain rounded"
-        />
+        {isVideo ? (
+          <video
+            src={bookmark.url}
+            controls
+            playsInline
+            className="mb-4 w-full max-h-64 rounded"
+          >
+            Your browser does not support the video tag.
+          </video>
+        ) : (
+          <img
+            src={bookmark.url}
+            alt={bookmark.title || 'Bookmark image'}
+            className="mb-4 w-full max-h-64 object-contain rounded"
+          />
+        )}
         <h2 className="text-lg font-medium mb-4">Edit Bookmark</h2>
         <div className="mb-4">
           <label className="block mb-1 text-sm">Title</label>
