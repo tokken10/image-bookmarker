@@ -63,6 +63,7 @@ interface GalleryProps {
   setSelectMode: Dispatch<SetStateAction<boolean>>;
   showSearch: boolean;
   setShowSearch: Dispatch<SetStateAction<boolean>>;
+  showDuplicatesOnly: boolean;
 }
 
 export default function Gallery({
@@ -74,6 +75,7 @@ export default function Gallery({
   setSelectMode,
   showSearch,
   setShowSearch,
+  showDuplicatesOnly,
 }: GalleryProps) {
   const ITEMS_PER_PAGE = 24;
   const PAGINATION_STATE_KEY = 'imageBookmarks:paginationState:v1';
@@ -251,13 +253,54 @@ export default function Gallery({
     }
   };
 
-  const filteredByCategory = selectedCategory === 'All'
-    ? bookmarks
-    : bookmarks.filter(b => b.categories?.includes(selectedCategory));
+  const duplicateIdSet = useMemo(() => {
+    const map = new Map<string, ImageBookmark[]>();
+    const normalizeUrl = (value: string) => {
+      const trimmed = value.trim();
+      try {
+        const parsed = new URL(trimmed);
+        parsed.hash = '';
+        const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+        const normalizedSearch = parsed.search;
+        return `${parsed.origin}${normalizedPath || '/'}${normalizedSearch}`;
+      } catch (error) {
+        return trimmed.replace(/\s+/g, '');
+      }
+    };
+
+    bookmarks.forEach((bookmark) => {
+      const key = normalizeUrl(bookmark.url);
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)?.push(bookmark);
+    });
+
+    const duplicates = new Set<string>();
+    map.forEach((items) => {
+      if (items.length > 1) {
+        items.forEach((item) => duplicates.add(item.id));
+      }
+    });
+
+    return duplicates;
+  }, [bookmarks]);
+
+  const filteredByCategory = useMemo(() => (
+    selectedCategory === 'All'
+      ? bookmarks
+      : bookmarks.filter(b => b.categories?.includes(selectedCategory))
+  ), [bookmarks, selectedCategory]);
+
+  const filteredBookmarks = useMemo(() => (
+    showDuplicatesOnly
+      ? filteredByCategory.filter((bookmark) => duplicateIdSet.has(bookmark.id))
+      : filteredByCategory
+  ), [filteredByCategory, showDuplicatesOnly, duplicateIdSet]);
 
   const searchResults = useMemo(
-    () => searchImages(filteredByCategory, debouncedSearch),
-    [filteredByCategory, debouncedSearch]
+    () => searchImages(filteredBookmarks, debouncedSearch),
+    [filteredBookmarks, debouncedSearch]
   );
 
   const displayedBookmarks = searchResults.map((r) => r.bookmark);
@@ -389,6 +432,11 @@ export default function Gallery({
               </button>
             </div>
           )}
+          {showDuplicatesOnly && (
+            <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-200">
+              Showing only bookmarks that share an identical image URL with at least one other entry.
+            </div>
+          )}
         </>
       )}
 
@@ -398,7 +446,11 @@ export default function Gallery({
 
         <div className="text-center py-12">
           <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">
-            {debouncedSearch ? 'No results' : 'No bookmarks in this category'}
+            {debouncedSearch
+              ? 'No results'
+              : showDuplicatesOnly
+                ? 'No duplicate bookmarks found'
+                : 'No bookmarks in this category'}
           </h3>
         </div>
       ) : (
