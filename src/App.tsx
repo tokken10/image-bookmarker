@@ -21,6 +21,7 @@ export default function App() {
   const [showInputBar, setShowInputBar] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
+  const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
 
   // Load bookmarks on initial render
@@ -187,6 +188,17 @@ export default function App() {
               >
                 Reorder Images
               </button>
+              <button
+                type="button"
+                onClick={() => setShowDuplicatesOnly(prev => !prev)}
+                className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${
+                  showDuplicatesOnly
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-amber-500 hover:bg-amber-600'
+                }`}
+              >
+                {showDuplicatesOnly ? 'Show All Images' : 'Show Duplicates'}
+              </button>
               {!selectMode && (
                 <button
                   type="button"
@@ -208,6 +220,7 @@ export default function App() {
           setSelectMode={setSelectMode}
           showSearch={showSearch}
           setShowSearch={setShowSearch}
+          showDuplicatesOnly={showDuplicatesOnly}
         />
       </main>
 
