@@ -54,6 +54,11 @@ const readFileAsDataUrl = (file: File) =>
     reader.readAsDataURL(file);
   });
 
+const ITEMS_PER_PAGE_OPTIONS = [12, 24, 48, 96] as const;
+type ItemsPerPageOption = (typeof ITEMS_PER_PAGE_OPTIONS)[number];
+const DEFAULT_ITEMS_PER_PAGE: ItemsPerPageOption = 24;
+const ITEMS_PER_PAGE_STORAGE_KEY = 'imageBookmarks:itemsPerPage:v1';
+
 interface GalleryProps {
   onImageClick: (index: number, items: ImageBookmark[]) => void;
   refreshTrigger: number;
@@ -77,7 +82,6 @@ export default function Gallery({
   setShowSearch,
   showDuplicatesOnly,
 }: GalleryProps) {
-  const ITEMS_PER_PAGE = 24;
   const PAGINATION_STATE_KEY = 'imageBookmarks:paginationState:v1';
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,11 +93,36 @@ export default function Gallery({
   const [editingBookmark, setEditingBookmark] = useState<ImageBookmark | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [dropError, setDropError] = useState<string | null>(null);
+  const [itemsPerPage, setItemsPerPage] = useState<ItemsPerPageOption>(
+    DEFAULT_ITEMS_PER_PAGE
+  );
 
   const paginationKey = useMemo(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
     return `${selectedCategory}::${normalizedSearch}`;
   }, [selectedCategory, debouncedSearch]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(ITEMS_PER_PAGE_STORAGE_KEY);
+      if (stored) {
+        const parsed = Number.parseInt(stored, 10);
+        if (ITEMS_PER_PAGE_OPTIONS.includes(parsed as ItemsPerPageOption)) {
+          setItemsPerPage(parsed as ItemsPerPageOption);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load items-per-page preference:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(ITEMS_PER_PAGE_STORAGE_KEY, String(itemsPerPage));
+    } catch (error) {
+      console.error('Failed to save items-per-page preference:', error);
+    }
+  }, [itemsPerPage]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 250);
@@ -255,18 +284,18 @@ export default function Gallery({
 
   const duplicateIdSet = useMemo(() => {
     const map = new Map<string, ImageBookmark[]>();
-    const normalizeUrl = (value: string) => {
-      const trimmed = value.trim();
-      try {
-        const parsed = new URL(trimmed);
-        parsed.hash = '';
-        const normalizedPath = parsed.pathname.replace(/\/+$/, '');
-        const normalizedSearch = parsed.search;
-        return `${parsed.origin}${normalizedPath || '/'}${normalizedSearch}`;
-      } catch (error) {
-        return trimmed.replace(/\s+/g, '');
-      }
-    };
+      const normalizeUrl = (value: string) => {
+        const trimmed = value.trim();
+        try {
+          const parsed = new URL(trimmed);
+          parsed.hash = '';
+          const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+          const normalizedSearch = parsed.search;
+          return `${parsed.origin}${normalizedPath || '/'}${normalizedSearch}`;
+        } catch {
+          return trimmed.replace(/\s+/g, '');
+        }
+      };
 
     bookmarks.forEach((bookmark) => {
       const key = normalizeUrl(bookmark.url);
@@ -306,7 +335,7 @@ export default function Gallery({
   const displayedBookmarks = searchResults.map((r) => r.bookmark);
 
   const totalBookmarks = displayedBookmarks.length;
-  const totalPages = Math.max(1, Math.ceil(totalBookmarks / ITEMS_PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(totalBookmarks / itemsPerPage));
 
   useEffect(() => {
     setCurrentPage(prev => {
@@ -316,9 +345,9 @@ export default function Gallery({
   }, [totalPages]);
 
   const paginatedBookmarks = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return displayedBookmarks.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [displayedBookmarks, currentPage]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return displayedBookmarks.slice(startIndex, startIndex + itemsPerPage);
+  }, [displayedBookmarks, currentPage, itemsPerPage]);
 
   const createPageNumbers = () => {
     if (totalPages <= 7) {
@@ -346,8 +375,8 @@ export default function Gallery({
     return pages;
   };
 
-  const startIndex = totalBookmarks === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
-  const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, totalBookmarks);
+  const startIndex = totalBookmarks === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const endIndex = Math.min(currentPage * itemsPerPage, totalBookmarks);
 
   if (isLoading) {
     return (
@@ -681,67 +710,91 @@ export default function Gallery({
         </div>
       )}
 
-      {totalBookmarks > 0 && totalPages > 1 && (
+      {totalBookmarks > 0 && (
         <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Showing {startIndex}-{endIndex} of {totalBookmarks}
-          </p>
-          <div className="flex items-center gap-2 self-center">
-            <button
-              type="button"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                currentPage === 1
-                  ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
-              }`}
-            >
-              Previous
-            </button>
-            <div className="flex items-center gap-1">
-              {createPageNumbers().map((page, index) => {
-                if (typeof page === 'string') {
-                  return (
-                    <span
-                      key={`${page}-${index}`}
-                      className="px-2 text-sm text-gray-500 dark:text-gray-400"
-                    >
-                      ...
-                    </span>
-                  );
-                }
-
-                return (
-                  <button
-                    key={page}
-                    type="button"
-                    onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white shadow'
-                        : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
-                    }`}
-                    aria-current={currentPage === page ? 'page' : undefined}
-                  >
-                    {page}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                currentPage === totalPages
-                  ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
-              }`}
-            >
-              Next
-            </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Showing {startIndex}-{endIndex} of {totalBookmarks}
+            </p>
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <span>Per page:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(event) => {
+                  const value = Number.parseInt(event.target.value, 10) as ItemsPerPageOption;
+                  if (ITEMS_PER_PAGE_OPTIONS.includes(value)) {
+                    setItemsPerPage(value);
+                    setCurrentPage(1);
+                  }
+                }}
+                className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                {ITEMS_PER_PAGE_OPTIONS.map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2 self-center sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  currentPage === 1
+                    ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+                }`}
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-1">
+                {createPageNumbers().map((page, index) => {
+                  if (typeof page === 'string') {
+                    return (
+                      <span
+                        key={`${page}-${index}`}
+                        className="px-2 text-sm text-gray-500 dark:text-gray-400"
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        currentPage === page
+                          ? 'bg-blue-600 text-white shadow'
+                          : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+                      }`}
+                      aria-current={currentPage === page ? 'page' : undefined}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  currentPage === totalPages
+                    ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+                }`}
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
 
