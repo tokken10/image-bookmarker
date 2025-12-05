@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { isValidImageUrl } from '../utils/validation';
-import { addBookmark } from '../lib/storage';
+import { addBookmark, isDuplicateUrl } from '../lib/storage';
 
 interface InputBarProps {
   onAddBookmark: () => void;
@@ -31,6 +31,11 @@ export default function InputBar({ onAddBookmark, selectedCategory, onClose }: I
 
     if (!isValidImageUrl(url)) {
       setError('Please enter a valid image URL (jpg, jpeg, png, gif, webp, svg)');
+      return;
+    }
+
+    if (isDuplicateUrl(url)) {
+      setError('This image is already in your bookmarks.');
       return;
     }
 

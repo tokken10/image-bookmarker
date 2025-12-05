@@ -4,6 +4,26 @@ import { defaultImages } from '../data/defaultImages';
 
 const STORAGE_KEY = 'imageBookmarks:v1';
 
+export function normalizeBookmarkUrl(value: string): string {
+  const trimmed = value.trim();
+  try {
+    const parsed = new URL(trimmed);
+    parsed.hash = '';
+    const normalizedPath = parsed.pathname.replace(/\/+$/, '');
+    const normalizedSearch = parsed.search;
+    return `${parsed.origin}${normalizedPath || '/'}${normalizedSearch}`;
+  } catch {
+    return trimmed.replace(/\s+/g, '');
+  }
+}
+
+export function isDuplicateUrl(url: string): boolean {
+  const normalized = normalizeBookmarkUrl(url);
+  return loadBookmarks().some(
+    (bookmark) => normalizeBookmarkUrl(bookmark.url) === normalized,
+  );
+}
+
 export function loadBookmarks(): ImageBookmark[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
