@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ImageBookmark } from '../types';
-import { addBookmark, loadBookmarks, removeBookmark, removeBookmarks } from '../lib/storage';
+import { addBookmark, isDuplicateUrl, loadBookmarks, normalizeBookmarkUrl, removeBookmark, removeBookmarks } from '../lib/storage';
 import { formatDate, isValidImageUrl, isVideoBookmark } from '../utils/validation';
 import { searchImages } from '../utils/search';
 import EditBookmarkModal from './EditBookmarkModal';
@@ -238,11 +238,15 @@ export default function Gallery({
     const errors: string[] = [];
 
     if (droppedUrl && isValidImageUrl(droppedUrl)) {
-      const bookmark = addBookmark({
-        url: droppedUrl,
-        categories: selectedCategory !== 'All' ? [selectedCategory] : undefined,
-      });
-      newItems.push(bookmark);
+      if (isDuplicateUrl(droppedUrl)) {
+        errors.push('This image is already in your bookmarks.');
+      } else {
+        const bookmark = addBookmark({
+          url: droppedUrl,
+          categories: selectedCategory !== 'All' ? [selectedCategory] : undefined,
+        });
+        newItems.push(bookmark);
+      }
     }
 
     const files = Array.from(e.dataTransfer.files);
@@ -258,6 +262,10 @@ export default function Gallery({
       }
       try {
         const dataUrl = await readFileAsDataUrl(file);
+        if (isDuplicateUrl(dataUrl)) {
+          errors.push(`${file.name} is already in your bookmarks.`);
+          continue;
+        }
         const bookmark = addBookmark({
           url: dataUrl,
           title: file.name,
@@ -284,21 +292,9 @@ export default function Gallery({
 
   const duplicateIdSet = useMemo(() => {
     const map = new Map<string, ImageBookmark[]>();
-      const normalizeUrl = (value: string) => {
-        const trimmed = value.trim();
-        try {
-          const parsed = new URL(trimmed);
-          parsed.hash = '';
-          const normalizedPath = parsed.pathname.replace(/\/+$/, '');
-          const normalizedSearch = parsed.search;
-          return `${parsed.origin}${normalizedPath || '/'}${normalizedSearch}`;
-        } catch {
-          return trimmed.replace(/\s+/g, '');
-        }
-      };
 
     bookmarks.forEach((bookmark) => {
-      const key = normalizeUrl(bookmark.url);
+      const key = normalizeBookmarkUrl(bookmark.url);
       if (!map.has(key)) {
         map.set(key, []);
       }
