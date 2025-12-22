@@ -374,38 +374,45 @@ export default function Gallery({
   const startIndex = totalBookmarks === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const endIndex = Math.min(currentPage * itemsPerPage, totalBookmarks);
 
-  const PaginationControls = ({ className = '' }: { className?: string }) => {
+  const PaginationControls = ({
+    className = '',
+    showMeta = true,
+  }: { className?: string; showMeta?: boolean }) => {
     if (totalBookmarks === 0) {
       return null;
     }
 
+    const justifyContent = showMeta ? 'sm:justify-between' : 'sm:justify-end';
+
     return (
-      <div className={`${className} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
-            Showing {startIndex}-{endIndex} of {totalBookmarks}
-          </p>
-          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-            <span>Per page:</span>
-            <select
-              value={itemsPerPage}
-              onChange={(event) => {
-                const value = Number.parseInt(event.target.value, 10) as ItemsPerPageOption;
-                if (ITEMS_PER_PAGE_OPTIONS.includes(value)) {
-                  setItemsPerPage(value);
-                  setCurrentPage(1);
-                }
-              }}
-              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-            >
-              {ITEMS_PER_PAGE_OPTIONS.map(option => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+      <div className={`${className} flex flex-col gap-4 sm:flex-row sm:items-center ${justifyContent}`}>
+        {showMeta && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              Showing {startIndex}-{endIndex} of {totalBookmarks}
+            </p>
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+              <span>Per page:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(event) => {
+                  const value = Number.parseInt(event.target.value, 10) as ItemsPerPageOption;
+                  if (ITEMS_PER_PAGE_OPTIONS.includes(value)) {
+                    setItemsPerPage(value);
+                    setCurrentPage(1);
+                  }
+                }}
+                className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                {ITEMS_PER_PAGE_OPTIONS.map(option => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
         {totalPages > 1 && (
           <div className="flex items-center gap-2 self-center sm:self-auto">
             <button
@@ -559,7 +566,7 @@ export default function Gallery({
         </>
       )}
 
-      {totalBookmarks > 0 && <PaginationControls className="mb-4" />}
+      {totalBookmarks > 0 && <PaginationControls className="mb-4" showMeta={false} />}
 
 
       {totalBookmarks === 0 ? (
