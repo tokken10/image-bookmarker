@@ -30,7 +30,7 @@ export default function ScrollToBottomButton() {
     <button
       type="button"
       onClick={handleClick}
-      className={`fixed bottom-6 right-24 p-3 rounded-full bg-blue-600 text-white shadow-lg transition-opacity duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed bottom-6 right-6 p-3 rounded-full bg-blue-600 text-white shadow-lg transition-opacity duration-200 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-400 ${isVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       aria-label="Scroll to bottom"
       title="Scroll to bottom"
     >
