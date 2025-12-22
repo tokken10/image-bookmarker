@@ -374,6 +374,100 @@ export default function Gallery({
   const startIndex = totalBookmarks === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
   const endIndex = Math.min(currentPage * itemsPerPage, totalBookmarks);
 
+  const PaginationControls = ({ className = '' }: { className?: string }) => {
+    if (totalBookmarks === 0) {
+      return null;
+    }
+
+    return (
+      <div className={`${className} flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between`}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            Showing {startIndex}-{endIndex} of {totalBookmarks}
+          </p>
+          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+            <span>Per page:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(event) => {
+                const value = Number.parseInt(event.target.value, 10) as ItemsPerPageOption;
+                if (ITEMS_PER_PAGE_OPTIONS.includes(value)) {
+                  setItemsPerPage(value);
+                  setCurrentPage(1);
+                }
+              }}
+              className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+            >
+              {ITEMS_PER_PAGE_OPTIONS.map(option => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2 self-center sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                currentPage === 1
+                  ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+              }`}
+            >
+              Previous
+            </button>
+            <div className="flex items-center gap-1">
+              {createPageNumbers().map((page, index) => {
+                if (typeof page === 'string') {
+                  return (
+                    <span
+                      key={`${page}-${index}`}
+                      className="px-2 text-sm text-gray-500 dark:text-gray-400"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white shadow'
+                        : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+                    }`}
+                    aria-current={currentPage === page ? 'page' : undefined}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                currentPage === totalPages
+                  ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -464,6 +558,8 @@ export default function Gallery({
           )}
         </>
       )}
+
+      {totalBookmarks > 0 && <PaginationControls className="mb-4" />}
 
 
       {totalBookmarks === 0 ? (
@@ -706,93 +802,7 @@ export default function Gallery({
         </div>
       )}
 
-      {totalBookmarks > 0 && (
-        <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-            <p className="text-sm text-gray-600 dark:text-gray-300">
-              Showing {startIndex}-{endIndex} of {totalBookmarks}
-            </p>
-            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-              <span>Per page:</span>
-              <select
-                value={itemsPerPage}
-                onChange={(event) => {
-                  const value = Number.parseInt(event.target.value, 10) as ItemsPerPageOption;
-                  if (ITEMS_PER_PAGE_OPTIONS.includes(value)) {
-                    setItemsPerPage(value);
-                    setCurrentPage(1);
-                  }
-                }}
-                className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-              >
-                {ITEMS_PER_PAGE_OPTIONS.map(option => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {totalPages > 1 && (
-            <div className="flex items-center gap-2 self-center sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  currentPage === 1
-                    ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
-                }`}
-              >
-                Previous
-              </button>
-              <div className="flex items-center gap-1">
-                {createPageNumbers().map((page, index) => {
-                  if (typeof page === 'string') {
-                    return (
-                      <span
-                        key={`${page}-${index}`}
-                        className="px-2 text-sm text-gray-500 dark:text-gray-400"
-                      >
-                        ...
-                      </span>
-                    );
-                  }
-
-                  return (
-                    <button
-                      key={page}
-                      type="button"
-                      onClick={() => setCurrentPage(page)}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                        currentPage === page
-                          ? 'bg-blue-600 text-white shadow'
-                          : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
-                      }`}
-                      aria-current={currentPage === page ? 'page' : undefined}
-                    >
-                      {page}
-                    </button>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  currentPage === totalPages
-                    ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
-                }`}
-              >
-                Next
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      <PaginationControls className="mt-6 sm:mt-8" />
 
       {editingBookmark && (
         <EditBookmarkModal
