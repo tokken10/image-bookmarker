@@ -243,7 +243,7 @@ export default function Gallery({
       } else {
         const bookmark = addBookmark({
           url: droppedUrl,
-          categories: selectedCategory !== 'All' ? [selectedCategory] : undefined,
+          categories: selectedCategories.length > 0 ? selectedCategories : undefined,
         });
         newItems.push(bookmark);
       }
