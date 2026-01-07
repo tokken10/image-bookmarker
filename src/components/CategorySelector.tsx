@@ -4,6 +4,7 @@ interface CategorySelectorProps {
   onToggle: (category: string) => void;
   onClear: () => void;
   onAddCategory: () => void;
+  onDeleteCategory: (category: string) => void;
 }
 
 export default function CategorySelector({
@@ -12,6 +13,7 @@ export default function CategorySelector({
   onToggle,
   onClear,
   onAddCategory,
+  onDeleteCategory,
 }: CategorySelectorProps) {
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
@@ -40,20 +42,43 @@ export default function CategorySelector({
         >
           All
         </button>
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            type="button"
-            onClick={() => onToggle(cat)}
-            className={`px-3 py-1 rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
-              selected.includes(cat)
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+        {categories.map((cat) => {
+          const isSelected = selected.includes(cat);
+          return (
+            <div
+              key={cat}
+              className={`flex items-center gap-1 rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
+                isSelected
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => onToggle(cat)}
+                className="px-3 py-1"
+              >
+                {cat}
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDeleteCategory(cat);
+                }}
+                className={`pr-2 pl-1 text-xs font-semibold transition-colors ${
+                  isSelected
+                    ? 'text-white/80 hover:text-white'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                }`}
+                aria-label={`Delete category ${cat}`}
+                title={`Delete ${cat}`}
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

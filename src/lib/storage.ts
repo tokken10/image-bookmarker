@@ -157,3 +157,27 @@ export function reorderBookmarks(): ImageBookmark[] {
   saveBookmarks(bookmarks);
   return bookmarks;
 }
+
+export function removeCategoryFromBookmarks(category: string): ImageBookmark[] {
+  const bookmarks = loadBookmarks();
+  const updated = bookmarks.map((bookmark) => {
+    if (!bookmark.categories) {
+      return bookmark;
+    }
+    const filtered = bookmark.categories.filter((cat) => cat !== category);
+    if (filtered.length === bookmark.categories.length) {
+      return bookmark;
+    }
+    const next: ImageBookmark = {
+      ...bookmark,
+      categories: filtered.length > 0 ? filtered : undefined,
+    };
+    if (!next.categories) {
+      delete next.categories;
+    }
+    next.searchTokens = buildSearchTokens(next);
+    return next;
+  });
+  saveBookmarks(updated);
+  return updated;
+}
