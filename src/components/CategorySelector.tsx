@@ -48,11 +48,10 @@ export default function CategorySelector({
         <button
           type="button"
           onClick={onClear}
-          className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full border px-3 py-1.5 text-sm font-medium shadow-sm transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-            selected.length === 0
-              ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-500 dark:bg-blue-500 dark:text-white dark:border-blue-400 dark:hover:bg-blue-400'
-              : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-800'
-          }`}
+          className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${selected.length === 0
+              ? 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+            }`}
         >
           All
         </button>
@@ -61,16 +60,18 @@ export default function CategorySelector({
           return (
             <div
               key={cat}
-              className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full border text-sm shadow-sm transition active:scale-[0.98] ${
-                isSelected
-                  ? 'bg-blue-600 text-white border-blue-600 hover:bg-blue-500 dark:bg-blue-500 dark:text-white dark:border-blue-400 dark:hover:bg-blue-400'
-                  : 'bg-white text-slate-800 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-800'
-              } ${isManageMode ? 'overflow-hidden' : ''} focus-within:ring-2 focus-within:ring-blue-500`}
+              className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full text-sm shadow-sm transition-all duration-200 active:scale-[0.98] focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-1 ${isSelected
+                ? 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600'
+                : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600'
+                }`}
             >
               <button
                 type="button"
                 onClick={() => onToggle(cat)}
-                className="px-3 py-1.5 font-medium focus-visible:outline-none"
+                className={`px-4 py-2 font-medium focus-visible:outline-none ${isSelected
+                  ? 'text-white'
+                  : 'text-gray-700 dark:text-gray-200'
+                  }`}
               >
                 {cat}
               </button>
@@ -81,11 +82,10 @@ export default function CategorySelector({
                     event.stopPropagation();
                     onDeleteCategory(cat);
                   }}
-                  className={`border-l px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                    isSelected
-                      ? 'border-white/20 text-white/80 hover:text-white hover:bg-white/10 dark:border-white/20 dark:text-white/80 dark:hover:text-white dark:hover:bg-white/10'
-                      : 'border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800'
-                  }`}
+                  className={`flex items-center justify-center h-full px-2 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-r-full ${isSelected
+                    ? 'text-white/80 hover:text-white hover:bg-blue-700 dark:hover:bg-blue-600'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-300 dark:text-gray-400 dark:hover:text-white dark:hover:bg-gray-600'
+                    }`}
                   aria-label={`Delete category ${cat}`}
                   title={`Delete ${cat}`}
                 >
