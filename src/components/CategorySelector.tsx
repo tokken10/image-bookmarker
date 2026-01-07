@@ -27,7 +27,7 @@ export default function CategorySelector({
           <button
             type="button"
             onClick={() => setIsManageMode((prev) => !prev)}
-            className="rounded-full border border-gray-300 px-3 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
+            className="rounded-full border border-blue-600 px-3 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-gray-800"
             aria-pressed={isManageMode}
           >
             {isManageMode ? 'Done' : 'Manage'}
