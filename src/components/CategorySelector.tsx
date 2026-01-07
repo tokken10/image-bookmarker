@@ -51,7 +51,7 @@ export default function CategorySelector({
           className={`px-3 py-1 rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
             selected.length === 0
               ? 'bg-blue-600 text-white border-blue-700 hover:bg-blue-700 dark:bg-blue-400 dark:text-slate-900 dark:border-blue-300 dark:hover:bg-blue-300'
-              : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500 dark:hover:bg-slate-600'
+              : 'bg-blue-100 text-blue-900 border-blue-200 hover:bg-blue-200 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500 dark:hover:bg-slate-600'
           }`}
         >
           All
@@ -64,7 +64,7 @@ export default function CategorySelector({
               className={`flex items-center rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
                 isSelected
                   ? 'bg-blue-600 text-white border-blue-700 hover:bg-blue-700 dark:bg-blue-400 dark:text-slate-900 dark:border-blue-300 dark:hover:bg-blue-300'
-                  : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500 dark:hover:bg-slate-600'
+                  : 'bg-blue-100 text-blue-900 border-blue-200 hover:bg-blue-200 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500 dark:hover:bg-slate-600'
               } ${isManageMode ? 'gap-1' : ''}`}
             >
               <button
