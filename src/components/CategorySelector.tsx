@@ -51,7 +51,7 @@ export default function CategorySelector({
           className={`px-3 py-1 rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
             selected.length === 0
               ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
+              : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-slate-800 dark:text-blue-200 dark:border-slate-700 dark:hover:bg-slate-700'
           }`}
         >
           All
@@ -64,7 +64,7 @@ export default function CategorySelector({
               className={`flex items-center rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
                 isSelected
                   ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
+                  : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-slate-800 dark:text-blue-200 dark:border-slate-700 dark:hover:bg-slate-700'
               } ${isManageMode ? 'gap-1' : ''}`}
             >
               <button
