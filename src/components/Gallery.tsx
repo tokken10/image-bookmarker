@@ -63,7 +63,7 @@ interface GalleryProps {
   onImageClick: (index: number, items: ImageBookmark[]) => void;
   refreshTrigger: number;
   onAddBookmark: () => void;
-  selectedCategory: string;
+  selectedCategories: string[];
   selectMode: boolean;
   setSelectMode: Dispatch<SetStateAction<boolean>>;
   showSearch: boolean;
@@ -75,7 +75,7 @@ export default function Gallery({
   onImageClick,
   refreshTrigger,
   onAddBookmark,
-  selectedCategory,
+  selectedCategories,
   selectMode,
   setSelectMode,
   showSearch,
@@ -99,8 +99,8 @@ export default function Gallery({
 
   const paginationKey = useMemo(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
-    return `${selectedCategory}::${normalizedSearch}`;
-  }, [selectedCategory, debouncedSearch]);
+    return `${selectedCategories.join(',')}::${normalizedSearch}`;
+  }, [selectedCategories, debouncedSearch]);
 
   useEffect(() => {
     try {
@@ -243,7 +243,7 @@ export default function Gallery({
       } else {
         const bookmark = addBookmark({
           url: droppedUrl,
-          categories: selectedCategory !== 'All' ? [selectedCategory] : undefined,
+          categories: selectedCategories.length > 0 ? selectedCategories : undefined,
         });
         newItems.push(bookmark);
       }
@@ -271,7 +271,7 @@ export default function Gallery({
           title: file.name,
           mimeType: info.mimeType,
           mediaType: info.mediaType,
-          categories: selectedCategory !== 'All' ? [selectedCategory] : undefined,
+          categories: selectedCategories.length > 0 ? selectedCategories : undefined,
         });
         newItems.push(bookmark);
       } catch (error) {
@@ -312,10 +312,12 @@ export default function Gallery({
   }, [bookmarks]);
 
   const filteredByCategory = useMemo(() => (
-    selectedCategory === 'All'
+    selectedCategories.length === 0
       ? bookmarks
-      : bookmarks.filter(b => b.categories?.includes(selectedCategory))
-  ), [bookmarks, selectedCategory]);
+      : bookmarks.filter((bookmark) =>
+        selectedCategories.every((category) => bookmark.categories?.includes(category))
+      )
+  ), [bookmarks, selectedCategories]);
 
   const filteredBookmarks = useMemo(() => (
     showDuplicatesOnly
