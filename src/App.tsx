@@ -17,7 +17,7 @@ export default function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [lightboxBookmarks, setLightboxBookmarks] = useState<ImageBookmark[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showInputBar, setShowInputBar] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
@@ -77,10 +77,11 @@ export default function App() {
   }, [bookmarks, customCategories]);
 
   useEffect(() => {
-    if (selectedCategory !== 'All' && !categories.includes(selectedCategory)) {
-      setSelectedCategory('All');
-    }
-  }, [categories, selectedCategory]);
+    setSelectedCategories((prev) => {
+      const next = prev.filter((cat) => categories.includes(cat));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [categories]);
 
   const handleAddCategory = () => {
     const name = window.prompt('Enter a new category name:');
@@ -91,13 +92,13 @@ export default function App() {
     const normalized = trimmed.toLowerCase();
     const existing = categories.find((cat) => cat.toLowerCase() === normalized);
     if (existing) {
-      setSelectedCategory(existing);
+      setSelectedCategories((prev) => (prev.includes(existing) ? prev : [...prev, existing]));
       return;
     }
 
     const updated = [...customCategories, trimmed];
     persistCustomCategories(updated);
-    setSelectedCategory(trimmed);
+    setSelectedCategories((prev) => [...prev, trimmed]);
   };
 
   const handleImageClick = (index: number, items: ImageBookmark[]) => {
@@ -144,7 +145,7 @@ export default function App() {
         {showInputBar ? (
           <InputBar
             onAddBookmark={handleAddBookmark}
-            selectedCategory={selectedCategory}
+            selectedCategories={selectedCategories}
             onClose={() => setShowInputBar(false)}
           />
         ) : (
@@ -162,8 +163,15 @@ export default function App() {
           <>
             <CategorySelector
               categories={categories}
-              selected={selectedCategory}
-              onSelect={setSelectedCategory}
+              selected={selectedCategories}
+              onToggle={(category) => {
+                setSelectedCategories((prev) =>
+                  prev.includes(category)
+                    ? prev.filter((item) => item !== category)
+                    : [...prev, category]
+                );
+              }}
+              onClear={() => setSelectedCategories([])}
               onAddCategory={handleAddCategory}
             />
             <div className="w-full max-w-4xl mx-auto p-4 flex gap-4">
@@ -215,7 +223,7 @@ export default function App() {
           onImageClick={handleImageClick}
           refreshTrigger={refreshTrigger}
           onAddBookmark={handleAddBookmark}
-          selectedCategory={selectedCategory}
+          selectedCategories={selectedCategories}
           selectMode={selectMode}
           setSelectMode={setSelectMode}
           showSearch={showSearch}

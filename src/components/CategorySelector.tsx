@@ -1,15 +1,22 @@
 interface CategorySelectorProps {
   categories: string[];
-  selected: string;
-  onSelect: (category: string) => void;
+  selected: string[];
+  onToggle: (category: string) => void;
+  onClear: () => void;
   onAddCategory: () => void;
 }
 
-export default function CategorySelector({ categories, selected, onSelect, onAddCategory }: CategorySelectorProps) {
+export default function CategorySelector({
+  categories,
+  selected,
+  onToggle,
+  onClear,
+  onAddCategory,
+}: CategorySelectorProps) {
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <div className="flex items-center justify-between mb-2 gap-2">
-        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by category</p>
+        <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by categories</p>
         <button
           type="button"
           onClick={onAddCategory}
@@ -24,9 +31,9 @@ export default function CategorySelector({ categories, selected, onSelect, onAdd
       <div className="flex gap-2 overflow-x-auto">
         <button
           type="button"
-          onClick={() => onSelect('All')}
+          onClick={onClear}
           className={`px-3 py-1 rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
-            selected === 'All'
+            selected.length === 0
               ? 'bg-blue-600 text-white border-blue-600'
               : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
           }`}
@@ -37,9 +44,9 @@ export default function CategorySelector({ categories, selected, onSelect, onAdd
           <button
             key={cat}
             type="button"
-            onClick={() => onSelect(cat)}
+            onClick={() => onToggle(cat)}
             className={`px-3 py-1 rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
-              selected === cat
+              selected.includes(cat)
                 ? 'bg-blue-600 text-white border-blue-600'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
