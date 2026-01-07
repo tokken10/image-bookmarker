@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { ImageBookmark } from './types';
-import { loadBookmarks, reorderBookmarks, shuffleBookmarks } from './lib/storage';
+import {
+  loadBookmarks,
+  removeCategoryFromBookmarks,
+  reorderBookmarks,
+  shuffleBookmarks,
+} from './lib/storage';
 import Header from './components/Header';
 import InputBar from './components/InputBar';
 import Gallery from './components/Gallery';
@@ -101,6 +106,26 @@ export default function App() {
     setSelectedCategories((prev) => [...prev, trimmed]);
   };
 
+  const handleDeleteCategory = (category: string) => {
+    if (
+      !window.confirm(
+        `Delete the "${category}" category from all bookmarks? This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    const updatedCustomCategories = customCategories.filter((cat) => cat !== category);
+    if (updatedCustomCategories.length !== customCategories.length) {
+      persistCustomCategories(updatedCustomCategories);
+    }
+
+    const updatedBookmarks = removeCategoryFromBookmarks(category);
+    setBookmarks(updatedBookmarks);
+    setSelectedCategories((prev) => prev.filter((cat) => cat !== category));
+    setRefreshTrigger((prev) => prev + 1);
+  };
+
   const handleImageClick = (index: number, items: ImageBookmark[]) => {
     setLightboxBookmarks(items);
     setLightboxIndex(index);
@@ -173,6 +198,7 @@ export default function App() {
               }}
               onClear={() => setSelectedCategories([])}
               onAddCategory={handleAddCategory}
+              onDeleteCategory={handleDeleteCategory}
             />
             <div className="w-full max-w-4xl mx-auto p-4 flex gap-4">
               <button
