@@ -4,11 +4,11 @@ import { addBookmark, isDuplicateUrl } from '../lib/storage';
 
 interface InputBarProps {
   onAddBookmark: () => void;
-  selectedCategory: string;
+  selectedCategories: string[];
   onClose: () => void;
 }
 
-export default function InputBar({ onAddBookmark, selectedCategory, onClose }: InputBarProps) {
+export default function InputBar({ onAddBookmark, selectedCategories, onClose }: InputBarProps) {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
@@ -18,8 +18,8 @@ export default function InputBar({ onAddBookmark, selectedCategory, onClose }: I
 
   useEffect(() => {
     // Default the categories input to the currently selected category
-    setCategories(selectedCategory !== 'All' ? selectedCategory : '');
-  }, [selectedCategory]);
+    setCategories(selectedCategories.length > 0 ? selectedCategories.join(', ') : '');
+  }, [selectedCategories]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +64,7 @@ export default function InputBar({ onAddBookmark, selectedCategory, onClose }: I
       setUrl('');
       setTitle('');
       setSourceUrl('');
-      setCategories(selectedCategory !== 'All' ? selectedCategory : '');
+      setCategories(selectedCategories.length > 0 ? selectedCategories.join(', ') : '');
       onAddBookmark();
       onClose();
     } catch (err) {
