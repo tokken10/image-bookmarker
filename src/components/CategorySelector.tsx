@@ -50,7 +50,7 @@ export default function CategorySelector({
           onClick={onClear}
           className={`px-3 py-1 rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
             selected.length === 0
-              ? 'bg-blue-600 text-white border-blue-600'
+              ? 'bg-blue-600 text-blue-100 border-blue-700 hover:bg-blue-700 dark:bg-blue-300 dark:text-slate-900 dark:border-blue-200 dark:hover:bg-blue-200'
               : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-slate-800 dark:text-blue-200 dark:border-slate-700 dark:hover:bg-slate-700'
           }`}
         >
@@ -63,7 +63,7 @@ export default function CategorySelector({
               key={cat}
               className={`flex items-center rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
                 isSelected
-                  ? 'bg-blue-600 text-white border-blue-600'
+                  ? 'bg-blue-600 text-blue-100 border-blue-700 hover:bg-blue-700 dark:bg-blue-300 dark:text-slate-900 dark:border-blue-200 dark:hover:bg-blue-200'
                   : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-slate-800 dark:text-blue-200 dark:border-slate-700 dark:hover:bg-slate-700'
               } ${isManageMode ? 'gap-1' : ''}`}
             >
@@ -83,7 +83,7 @@ export default function CategorySelector({
                   }}
                   className={`pr-2 pl-1 text-xs font-semibold transition-colors ${
                     isSelected
-                      ? 'text-white/80 hover:text-white'
+                      ? 'text-blue-100/80 hover:text-blue-50 dark:text-slate-900/70 dark:hover:text-slate-900'
                       : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
                   }`}
                   aria-label={`Delete category ${cat}`}
