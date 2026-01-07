@@ -44,14 +44,14 @@ export default function CategorySelector({
           </button>
         </div>
       </div>
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="flex gap-2 overflow-x-auto pb-1">
         <button
           type="button"
           onClick={onClear}
-          className={`px-3 py-1 rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
+          className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-3 py-1.5 text-sm font-medium shadow-sm ring-1 ring-inset transition active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
             selected.length === 0
-              ? 'bg-blue-500 text-slate-900 border-blue-600 hover:bg-blue-600 dark:bg-blue-500 dark:text-slate-900 dark:border-blue-400 dark:hover:bg-blue-400'
-              : 'bg-slate-200 text-slate-900 border-slate-300 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500 dark:hover:bg-slate-600'
+              ? 'bg-blue-600 text-white ring-blue-600 hover:bg-blue-500 dark:bg-blue-500 dark:text-white dark:ring-blue-400 dark:hover:bg-blue-400'
+              : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-700 dark:hover:bg-slate-700'
           }`}
         >
           All
@@ -61,16 +61,16 @@ export default function CategorySelector({
           return (
             <div
               key={cat}
-              className={`flex items-center rounded-full border flex-shrink-0 whitespace-nowrap text-sm transition-colors ${
+              className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-1 text-sm shadow-sm ring-1 ring-inset transition active:scale-[0.98] ${
                 isSelected
-                  ? 'bg-blue-500 text-slate-900 border-blue-600 hover:bg-blue-600 dark:bg-blue-500 dark:text-slate-900 dark:border-blue-400 dark:hover:bg-blue-400'
-                  : 'bg-slate-200 text-slate-900 border-slate-300 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500 dark:hover:bg-slate-600'
-              } ${isManageMode ? 'gap-1' : ''}`}
+                  ? 'bg-blue-600 text-white ring-blue-600 hover:bg-blue-500 dark:bg-blue-500 dark:text-white dark:ring-blue-400 dark:hover:bg-blue-400'
+                  : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-100 dark:ring-slate-700 dark:hover:bg-slate-700'
+              } ${isManageMode ? 'gap-1' : ''} focus-within:ring-2 focus-within:ring-blue-500`}
             >
               <button
                 type="button"
                 onClick={() => onToggle(cat)}
-                className="px-3 py-1"
+                className="px-3 py-1.5 font-medium focus-visible:outline-none"
               >
                 {cat}
               </button>
@@ -81,10 +81,10 @@ export default function CategorySelector({
                     event.stopPropagation();
                     onDeleteCategory(cat);
                   }}
-                  className={`pr-2 pl-1 text-xs font-semibold transition-colors ${
+                  className={`rounded-full px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                     isSelected
-                      ? 'text-slate-700 hover:text-slate-900 dark:text-slate-800 dark:hover:text-slate-900'
-                      : 'text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-white'
+                      ? 'text-white/80 hover:text-white hover:bg-white/10 dark:text-white/80 dark:hover:text-white dark:hover:bg-white/10'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/70 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-600/60'
                   }`}
                   aria-label={`Delete category ${cat}`}
                   title={`Delete ${cat}`}
