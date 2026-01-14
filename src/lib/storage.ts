@@ -24,6 +24,23 @@ export function isDuplicateUrl(url: string): boolean {
   );
 }
 
+export function moveBookmarkToFrontByUrl(url: string): ImageBookmark[] | null {
+  const normalized = normalizeBookmarkUrl(url);
+  const bookmarks = loadBookmarks();
+  const index = bookmarks.findIndex(
+    (bookmark) => normalizeBookmarkUrl(bookmark.url) === normalized,
+  );
+  if (index === -1) {
+    return null;
+  }
+  const [match] = bookmarks.splice(index, 1);
+  if (match) {
+    bookmarks.unshift(match);
+  }
+  saveBookmarks(bookmarks);
+  return bookmarks;
+}
+
 export function loadBookmarks(): ImageBookmark[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

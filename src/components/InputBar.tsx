@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { isValidImageUrl } from '../utils/validation';
-import { addBookmark, isDuplicateUrl } from '../lib/storage';
+import { addBookmark, isDuplicateUrl, moveBookmarkToFrontByUrl } from '../lib/storage';
 
 interface InputBarProps {
   onAddBookmark: () => void;
@@ -35,6 +35,8 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
     }
 
     if (isDuplicateUrl(url)) {
+      moveBookmarkToFrontByUrl(url);
+      onAddBookmark();
       setError('This image is already in your bookmarks.');
       return;
     }

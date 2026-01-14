@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ImageBookmark } from '../types';
-import { addBookmark, isDuplicateUrl, loadBookmarks, normalizeBookmarkUrl, removeBookmark, removeBookmarks } from '../lib/storage';
+import {
+  addBookmark,
+  isDuplicateUrl,
+  loadBookmarks,
+  moveBookmarkToFrontByUrl,
+  normalizeBookmarkUrl,
+  removeBookmark,
+  removeBookmarks,
+} from '../lib/storage';
 import { formatDate, isValidImageUrl, isVideoBookmark } from '../utils/validation';
 import { searchImages } from '../utils/search';
 import EditBookmarkModal from './EditBookmarkModal';
@@ -236,9 +244,15 @@ export default function Gallery({
     const droppedUrl = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
     const newItems: ImageBookmark[] = [];
     const errors: string[] = [];
+    let movedExisting = false;
 
     if (droppedUrl && isValidImageUrl(droppedUrl)) {
       if (isDuplicateUrl(droppedUrl)) {
+        const reordered = moveBookmarkToFrontByUrl(droppedUrl);
+        if (reordered) {
+          setBookmarks(reordered);
+          movedExisting = true;
+        }
         errors.push('This image is already in your bookmarks.');
       } else {
         const bookmark = addBookmark({
@@ -263,6 +277,11 @@ export default function Gallery({
       try {
         const dataUrl = await readFileAsDataUrl(file);
         if (isDuplicateUrl(dataUrl)) {
+          const reordered = moveBookmarkToFrontByUrl(dataUrl);
+          if (reordered) {
+            setBookmarks(reordered);
+            movedExisting = true;
+          }
           errors.push(`${file.name} is already in your bookmarks.`);
           continue;
         }
@@ -282,6 +301,10 @@ export default function Gallery({
 
     if (newItems.length > 0) {
       setBookmarks(prev => [...newItems, ...prev]);
+      onAddBookmark();
+    }
+
+    if (movedExisting) {
       onAddBookmark();
     }
 
