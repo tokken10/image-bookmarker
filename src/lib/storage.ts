@@ -147,6 +147,43 @@ export function updateBookmark(
   return updatedBookmark;
 }
 
+export function updateBookmarksBulk(
+  ids: string[],
+  updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>
+): ImageBookmark[] {
+  const idSet = new Set(ids);
+  const bookmarks = loadBookmarks();
+  const normalizedUpdates = { ...updates };
+
+  if ('title' in normalizedUpdates) {
+    const trimmedTitle = normalizedUpdates.title?.trim() ?? '';
+    normalizedUpdates.title = trimmedTitle ? trimmedTitle : undefined;
+  }
+
+  if ('categories' in normalizedUpdates) {
+    const trimmedCategories = normalizedUpdates.categories
+      ?.map((c) => c.trim())
+      .filter(Boolean) ?? [];
+    normalizedUpdates.categories = trimmedCategories.length > 0 ? trimmedCategories : undefined;
+  }
+
+  const updatedBookmarks = bookmarks.map((bookmark) => {
+    if (!idSet.has(bookmark.id)) {
+      return bookmark;
+    }
+
+    const updatedBookmark: ImageBookmark = {
+      ...bookmark,
+      ...normalizedUpdates,
+    };
+    updatedBookmark.searchTokens = buildSearchTokens(updatedBookmark);
+    return updatedBookmark;
+  });
+
+  saveBookmarks(updatedBookmarks);
+  return updatedBookmarks;
+}
+
 export function removeBookmark(id: string): void {
   const bookmarks = loadBookmarks().filter(bookmark => bookmark.id !== id);
   saveBookmarks(bookmarks);

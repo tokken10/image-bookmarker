@@ -9,9 +9,11 @@ import {
   normalizeBookmarkUrl,
   removeBookmark,
   removeBookmarks,
+  updateBookmarksBulk,
 } from '../lib/storage';
 import { formatDate, isValidImageUrl, isVideoBookmark } from '../utils/validation';
 import { searchImages } from '../utils/search';
+import BulkEditModal from './BulkEditModal';
 import EditBookmarkModal from './EditBookmarkModal';
 
 type SupportedMedia = {
@@ -99,6 +101,7 @@ export default function Gallery({
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [editingBookmark, setEditingBookmark] = useState<ImageBookmark | null>(null);
+  const [bulkEditing, setBulkEditing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [dropError, setDropError] = useState<string | null>(null);
   const [itemsPerPage, setItemsPerPage] = useState<ItemsPerPageOption>(
@@ -194,6 +197,7 @@ export default function Gallery({
     if (!selectMode) {
       setSelectedIds([]);
       setInfoVisibleId(null);
+      setBulkEditing(false);
     }
   }, [selectMode]);
 
@@ -218,6 +222,20 @@ export default function Gallery({
       setSelectMode(false);
       onAddBookmark();
     }
+  };
+
+  const handleBulkEditSave = (
+    updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>
+  ) => {
+    if (selectedIds.length === 0) return;
+    if (!('title' in updates) && !('categories' in updates)) return;
+
+    const updatedBookmarks = updateBookmarksBulk(selectedIds, updates);
+    setBookmarks(updatedBookmarks);
+    setSelectedIds([]);
+    setSelectMode(false);
+    setBulkEditing(false);
+    onAddBookmark();
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -564,6 +582,18 @@ export default function Gallery({
             <div className="mb-4 flex gap-2">
               <button
                 type="button"
+                onClick={() => setBulkEditing(true)}
+                disabled={selectedIds.length === 0}
+                className={`px-3 py-1 rounded-md text-white font-medium ${
+                  selectedIds.length === 0
+                    ? 'bg-blue-300 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                } transition-colors`}
+              >
+                Edit Selected ({selectedIds.length})
+              </button>
+              <button
+                type="button"
                 onClick={handleDeleteSelected}
                 disabled={selectedIds.length === 0}
                 className={`px-3 py-1 rounded-md text-white font-medium ${
@@ -848,6 +878,14 @@ export default function Gallery({
             setEditingBookmark(null);
             onAddBookmark();
           }}
+        />
+      )}
+      {bulkEditing && (
+        <BulkEditModal
+          selectedCount={selectedIds.length}
+          allCategories={allCategories}
+          onClose={() => setBulkEditing(false)}
+          onSave={handleBulkEditSave}
         />
       )}
     </div>
