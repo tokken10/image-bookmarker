@@ -207,27 +207,6 @@ export default function Gallery({
     lastSelectedIndexRef.current = null;
   }, [currentPage, paginationKey]);
 
-  const toggleSelection = useCallback(
-    (id: string, index: number, shiftKey: boolean) => {
-      setSelectedIds(prev => {
-        if (shiftKey && lastSelectedIndexRef.current !== null) {
-          const start = Math.min(lastSelectedIndexRef.current, index);
-          const end = Math.max(lastSelectedIndexRef.current, index);
-          const next = new Set(prev);
-          paginatedBookmarks
-            .slice(start, end + 1)
-            .forEach(bookmark => next.add(bookmark.id));
-          return Array.from(next);
-        }
-
-        return prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id];
-      });
-
-      lastSelectedIndexRef.current = index;
-    },
-    [paginatedBookmarks]
-  );
-
   const handleDeleteSelected = () => {
     if (selectedIds.length === 0) return;
     if (
@@ -408,6 +387,27 @@ export default function Gallery({
     const startIndex = (currentPage - 1) * itemsPerPage;
     return displayedBookmarks.slice(startIndex, startIndex + itemsPerPage);
   }, [displayedBookmarks, currentPage, itemsPerPage]);
+
+  const toggleSelection = useCallback(
+    (id: string, index: number, shiftKey: boolean) => {
+      setSelectedIds(prev => {
+        if (shiftKey && lastSelectedIndexRef.current !== null) {
+          const start = Math.min(lastSelectedIndexRef.current, index);
+          const end = Math.max(lastSelectedIndexRef.current, index);
+          const next = new Set(prev);
+          paginatedBookmarks
+            .slice(start, end + 1)
+            .forEach(bookmark => next.add(bookmark.id));
+          return Array.from(next);
+        }
+
+        return prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id];
+      });
+
+      lastSelectedIndexRef.current = index;
+    },
+    [paginatedBookmarks]
+  );
 
   const createPageNumbers = () => {
     if (totalPages <= 7) {
