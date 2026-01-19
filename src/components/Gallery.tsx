@@ -100,6 +100,8 @@ export default function Gallery({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchFrom, setSearchFrom] = useState('');
+  const [searchTo, setSearchTo] = useState('');
   const [editingBookmark, setEditingBookmark] = useState<ImageBookmark | null>(null);
   const [bulkEditing, setBulkEditing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -111,8 +113,8 @@ export default function Gallery({
 
   const paginationKey = useMemo(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
-    return `${selectedCategories.join(',')}::${normalizedSearch}`;
-  }, [selectedCategories, debouncedSearch]);
+    return `${selectedCategories.join(',')}::${normalizedSearch}::${searchFrom}::${searchTo}`;
+  }, [selectedCategories, debouncedSearch, searchFrom, searchTo]);
 
   useEffect(() => {
     try {
@@ -366,9 +368,34 @@ export default function Gallery({
       : filteredByCategory
   ), [filteredByCategory, showDuplicatesOnly, duplicateIdSet]);
 
+  const filteredByDate = useMemo(() => {
+    if (!searchFrom && !searchTo) {
+      return filteredBookmarks;
+    }
+    const start = searchFrom ? new Date(searchFrom) : null;
+    const end = searchTo ? new Date(searchTo) : null;
+    if (start) {
+      start.setHours(0, 0, 0, 0);
+    }
+    if (end) {
+      end.setHours(23, 59, 59, 999);
+    }
+    const startTime = start ? start.getTime() : null;
+    const endTime = end ? end.getTime() : null;
+    return filteredBookmarks.filter((bookmark) => {
+      if (startTime !== null && bookmark.createdAt < startTime) {
+        return false;
+      }
+      if (endTime !== null && bookmark.createdAt > endTime) {
+        return false;
+      }
+      return true;
+    });
+  }, [filteredBookmarks, searchFrom, searchTo]);
+
   const searchResults = useMemo(
-    () => searchImages(filteredBookmarks, debouncedSearch),
-    [filteredBookmarks, debouncedSearch]
+    () => searchImages(filteredByDate, debouncedSearch),
+    [filteredByDate, debouncedSearch]
   );
 
   const displayedBookmarks = searchResults.map((r) => r.bookmark);
@@ -572,29 +599,61 @@ export default function Gallery({
 
           {showSearch && (
             <div className="mb-4">
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') setSearch('');
-                  }}
-                  placeholder="Search images..."
-                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearch('');
-                    setShowSearch(false);
-                  }}
-                  className="px-3 py-2 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
-                >
-                  Close
-                </button>
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') setSearch('');
+                    }}
+                    placeholder="Search images..."
+                    className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setSearchFrom('');
+                      setSearchTo('');
+                      setShowSearch(false);
+                    }}
+                    className="px-3 py-2 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <label className="flex flex-col text-sm text-gray-600 dark:text-gray-300 sm:flex-1">
+                    <span className="mb-1">From</span>
+                    <input
+                      type="date"
+                      value={searchFrom}
+                      onChange={(event) => setSearchFrom(event.target.value)}
+                      className="rounded-md border border-gray-300 bg-white px-2 py-1 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                  </label>
+                  <label className="flex flex-col text-sm text-gray-600 dark:text-gray-300 sm:flex-1">
+                    <span className="mb-1">To</span>
+                    <input
+                      type="date"
+                      value={searchTo}
+                      onChange={(event) => setSearchTo(event.target.value)}
+                      className="rounded-md border border-gray-300 bg-white px-2 py-1 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchFrom('');
+                      setSearchTo('');
+                    }}
+                    className="self-start px-3 py-2 rounded-md text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 transition-colors dark:bg-blue-900/40 dark:text-blue-200 dark:hover:bg-blue-900/60"
+                  >
+                    Clear dates
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -645,12 +704,12 @@ export default function Gallery({
       {totalBookmarks > 0 && <PaginationControls className="mb-4" showMeta={false} />}
 
 
-      {totalBookmarks === 0 ? (
+          {totalBookmarks === 0 ? (
 
 
         <div className="text-center py-12">
           <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300">
-            {debouncedSearch
+            {debouncedSearch || searchFrom || searchTo
               ? 'No results'
               : showDuplicatesOnly
                 ? 'No duplicate bookmarks found'
