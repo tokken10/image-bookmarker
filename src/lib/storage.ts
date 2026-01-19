@@ -4,6 +4,16 @@ import { defaultImages } from '../data/defaultImages';
 
 const STORAGE_KEY = 'imageBookmarks:v1';
 
+export type BookmarkImport = {
+  url: string;
+  title?: string;
+  sourceUrl?: string;
+  categories?: string[];
+  mimeType?: string;
+  mediaType?: 'image' | 'video';
+  createdAt?: number;
+};
+
 export function normalizeBookmarkUrl(value: string): string {
   const trimmed = value.trim();
   try {
@@ -126,6 +136,61 @@ export function addBookmark(
   const updatedBookmarks = [newBookmark, ...bookmarks];
   saveBookmarks(updatedBookmarks);
   return newBookmark;
+}
+
+export function addBookmarksFromImport(entries: BookmarkImport[]): {
+  added: number;
+  skipped: number;
+} {
+  const bookmarks = loadBookmarks();
+  const normalizedUrls = new Set(
+    bookmarks.map((bookmark) => normalizeBookmarkUrl(bookmark.url)),
+  );
+
+  let added = 0;
+  let skipped = 0;
+
+  entries.forEach((entry) => {
+    const normalizedUrl = normalizeBookmarkUrl(entry.url);
+    if (!entry.url.trim() || normalizedUrls.has(normalizedUrl)) {
+      skipped += 1;
+      return;
+    }
+
+    const nextBookmark: ImageBookmark = {
+      id: crypto.randomUUID(),
+      url: entry.url.trim(),
+      title: entry.title?.trim() || undefined,
+      sourceUrl: entry.sourceUrl?.trim() || undefined,
+      mimeType: entry.mimeType?.trim() || undefined,
+      mediaType: entry.mediaType,
+      categories: entry.categories?.map((cat) => cat.trim()).filter(Boolean),
+      createdAt: entry.createdAt ?? Date.now(),
+    };
+
+    if (!nextBookmark.mediaType) {
+      if (nextBookmark.mimeType?.startsWith('video/')) {
+        nextBookmark.mediaType = 'video';
+      } else {
+        nextBookmark.mediaType = 'image';
+      }
+    }
+
+    if (nextBookmark.categories && nextBookmark.categories.length === 0) {
+      delete nextBookmark.categories;
+    }
+
+    nextBookmark.searchTokens = buildSearchTokens(nextBookmark);
+    bookmarks.unshift(nextBookmark);
+    normalizedUrls.add(normalizedUrl);
+    added += 1;
+  });
+
+  if (added > 0) {
+    saveBookmarks(bookmarks);
+  }
+
+  return { added, skipped };
 }
 
 export function updateBookmark(
