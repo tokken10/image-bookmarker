@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ImageBookmark } from '../types';
 import {
@@ -107,6 +107,7 @@ export default function Gallery({
   const [itemsPerPage, setItemsPerPage] = useState<ItemsPerPageOption>(
     DEFAULT_ITEMS_PER_PAGE
   );
+  const lastSelectedIndexRef = useRef<number | null>(null);
 
   const paginationKey = useMemo(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
@@ -198,14 +199,13 @@ export default function Gallery({
       setSelectedIds([]);
       setInfoVisibleId(null);
       setBulkEditing(false);
+      lastSelectedIndexRef.current = null;
     }
   }, [selectMode]);
 
-  const toggleSelection = (id: string) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
-    );
-  };
+  useEffect(() => {
+    lastSelectedIndexRef.current = null;
+  }, [currentPage, paginationKey]);
 
   const handleDeleteSelected = () => {
     if (selectedIds.length === 0) return;
@@ -387,6 +387,27 @@ export default function Gallery({
     const startIndex = (currentPage - 1) * itemsPerPage;
     return displayedBookmarks.slice(startIndex, startIndex + itemsPerPage);
   }, [displayedBookmarks, currentPage, itemsPerPage]);
+
+  const toggleSelection = useCallback(
+    (id: string, index: number, shiftKey: boolean) => {
+      setSelectedIds(prev => {
+        if (shiftKey && lastSelectedIndexRef.current !== null) {
+          const start = Math.min(lastSelectedIndexRef.current, index);
+          const end = Math.max(lastSelectedIndexRef.current, index);
+          const next = new Set(prev);
+          paginatedBookmarks
+            .slice(start, end + 1)
+            .forEach(bookmark => next.add(bookmark.id));
+          return Array.from(next);
+        }
+
+        return prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id];
+      });
+
+      lastSelectedIndexRef.current = index;
+    },
+    [paginatedBookmarks]
+  );
 
   const createPageNumbers = () => {
     if (totalPages <= 7) {
@@ -643,9 +664,9 @@ export default function Gallery({
             return (
               <div
                 key={bookmark.id}
-                onClick={() =>
+                onClick={(event) =>
                   selectMode
-                    ? toggleSelection(bookmark.id)
+                    ? toggleSelection(bookmark.id, index, event.shiftKey)
                     : onImageClick(index, paginatedBookmarks)
                 }
                 className={`group relative aspect-[4/3] rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-transform duration-200 cursor-pointer bg-gray-100 dark:bg-gray-800 hover:z-10 hover:scale-105 ${
@@ -657,7 +678,7 @@ export default function Gallery({
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
                     if (selectMode) {
-                      toggleSelection(bookmark.id);
+                      toggleSelection(bookmark.id, index, false);
                     } else {
                       onImageClick(index, paginatedBookmarks);
                     }
@@ -670,7 +691,15 @@ export default function Gallery({
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => toggleSelection(bookmark.id)}
+                        onChange={(event) =>
+                          toggleSelection(
+                            bookmark.id,
+                            index,
+                            event.nativeEvent instanceof MouseEvent
+                              ? event.nativeEvent.shiftKey
+                              : false
+                          )
+                        }
                         onClick={(e) => e.stopPropagation()}
                         className="w-4 h-4"
                       />
