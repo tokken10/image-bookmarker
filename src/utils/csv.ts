@@ -195,7 +195,7 @@ export function parseBookmarksCsv(text: string): CsvBookmark[] {
   };
 
   return dataRows
-    .map((row) => {
+    .map((row): CsvBookmark | null => {
       const url = getCell(row, 'url').trim();
       if (!url) {
         return null;
@@ -208,7 +208,7 @@ export function parseBookmarksCsv(text: string): CsvBookmark[] {
       const mediaType = parseMediaType(getCell(row, 'mediaType'));
       const createdAt = parseCreatedAt(getCell(row, 'createdAt'));
 
-      return {
+      const entry: CsvBookmark = {
         url,
         title: title || undefined,
         sourceUrl: sourceUrl || undefined,
@@ -216,7 +216,9 @@ export function parseBookmarksCsv(text: string): CsvBookmark[] {
         mimeType: mimeType || undefined,
         mediaType,
         createdAt,
-      } satisfies CsvBookmark;
+      };
+
+      return entry;
     })
-    .filter((entry): entry is CsvBookmark => Boolean(entry));
+    .filter((entry): entry is CsvBookmark => entry !== null);
 }
