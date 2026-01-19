@@ -8,7 +8,6 @@ import {
   shuffleBookmarks,
 } from './lib/storage';
 import { buildBookmarksCsv, parseBookmarksCsv } from './utils/csv';
-import { isValidImageUrl } from './utils/validation';
 import Header from './components/Header';
 import InputBar from './components/InputBar';
 import Gallery from './components/Gallery';
@@ -204,11 +203,13 @@ export default function App() {
         if (entry.mediaType === 'video') {
           return true;
         }
-        if (!isValidImageUrl(entry.url)) {
+        try {
+          const parsedUrl = new URL(entry.url);
+          return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+        } catch {
           invalidCount += 1;
           return false;
         }
-        return true;
       });
 
       if (validEntries.length === 0) {
