@@ -29,7 +29,7 @@ export default function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
-  const [hideUntitled, setHideUntitled] = useState(false);
+  const [hideUntitled, setHideUntitled] = useState(true);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [csvStatus, setCsvStatus] = useState<string | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
