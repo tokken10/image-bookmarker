@@ -29,6 +29,7 @@ export default function App() {
   const [showSearch, setShowSearch] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
+  const [hideUntitled, setHideUntitled] = useState(true);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [csvStatus, setCsvStatus] = useState<string | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
@@ -343,6 +344,17 @@ export default function App() {
               >
                 {showDuplicatesOnly ? 'Show All Images' : 'Show Duplicates'}
               </button>
+              <button
+                type="button"
+                onClick={() => setHideUntitled(prev => !prev)}
+                className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${
+                  hideUntitled
+                    ? 'bg-slate-700 hover:bg-slate-800'
+                    : 'bg-slate-500 hover:bg-slate-600'
+                }`}
+              >
+                {hideUntitled ? 'Show Untitled' : 'Hide Untitled'}
+              </button>
               {!selectMode && (
                 <button
                   type="button"
@@ -365,6 +377,7 @@ export default function App() {
           showSearch={showSearch}
           setShowSearch={setShowSearch}
           showDuplicatesOnly={showDuplicatesOnly}
+          hideUntitled={hideUntitled}
         />
       </main>
 
