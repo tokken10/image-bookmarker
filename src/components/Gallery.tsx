@@ -79,6 +79,7 @@ interface GalleryProps {
   showSearch: boolean;
   setShowSearch: Dispatch<SetStateAction<boolean>>;
   showDuplicatesOnly: boolean;
+  hideUntitled: boolean;
 }
 
 export default function Gallery({
@@ -91,6 +92,7 @@ export default function Gallery({
   showSearch,
   setShowSearch,
   showDuplicatesOnly,
+  hideUntitled,
 }: GalleryProps) {
   const PAGINATION_STATE_KEY = 'imageBookmarks:paginationState:v1';
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
@@ -113,8 +115,8 @@ export default function Gallery({
 
   const paginationKey = useMemo(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
-    return `${selectedCategories.join(',')}::${normalizedSearch}::${searchFrom}::${searchTo}`;
-  }, [selectedCategories, debouncedSearch, searchFrom, searchTo]);
+    return `${selectedCategories.join(',')}::${normalizedSearch}::${searchFrom}::${searchTo}::${showDuplicatesOnly ? 'dupes' : 'all'}::${hideUntitled ? 'hide-untitled' : 'all-titles'}`;
+  }, [selectedCategories, debouncedSearch, searchFrom, searchTo, showDuplicatesOnly, hideUntitled]);
 
   useEffect(() => {
     try {
@@ -368,9 +370,16 @@ export default function Gallery({
       : filteredByCategory
   ), [filteredByCategory, showDuplicatesOnly, duplicateIdSet]);
 
+  const filteredByTitle = useMemo(() => {
+    if (!hideUntitled) {
+      return filteredBookmarks;
+    }
+    return filteredBookmarks.filter((bookmark) => Boolean(bookmark.title?.trim()));
+  }, [filteredBookmarks, hideUntitled]);
+
   const filteredByDate = useMemo(() => {
     if (!searchFrom && !searchTo) {
-      return filteredBookmarks;
+      return filteredByTitle;
     }
     const start = searchFrom ? new Date(searchFrom) : null;
     const end = searchTo ? new Date(searchTo) : null;
@@ -382,7 +391,7 @@ export default function Gallery({
     }
     const startTime = start ? start.getTime() : null;
     const endTime = end ? end.getTime() : null;
-    return filteredBookmarks.filter((bookmark) => {
+    return filteredByTitle.filter((bookmark) => {
       if (startTime !== null && bookmark.createdAt < startTime) {
         return false;
       }
@@ -391,7 +400,7 @@ export default function Gallery({
       }
       return true;
     });
-  }, [filteredBookmarks, searchFrom, searchTo]);
+  }, [filteredByTitle, searchFrom, searchTo]);
 
   const searchResults = useMemo(
     () => searchImages(filteredByDate, debouncedSearch),
