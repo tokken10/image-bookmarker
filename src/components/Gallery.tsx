@@ -79,7 +79,7 @@ interface GalleryProps {
   showSearch: boolean;
   setShowSearch: Dispatch<SetStateAction<boolean>>;
   showDuplicatesOnly: boolean;
-  hideUntitled: boolean;
+  showUntitledOnly: boolean;
 }
 
 export default function Gallery({
@@ -92,7 +92,7 @@ export default function Gallery({
   showSearch,
   setShowSearch,
   showDuplicatesOnly,
-  hideUntitled,
+  showUntitledOnly,
 }: GalleryProps) {
   const PAGINATION_STATE_KEY = 'imageBookmarks:paginationState:v1';
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
@@ -115,8 +115,8 @@ export default function Gallery({
 
   const paginationKey = useMemo(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
-    return `${selectedCategories.join(',')}::${normalizedSearch}::${searchFrom}::${searchTo}::${showDuplicatesOnly ? 'dupes' : 'all'}::${hideUntitled ? 'hide-untitled' : 'all-titles'}`;
-  }, [selectedCategories, debouncedSearch, searchFrom, searchTo, showDuplicatesOnly, hideUntitled]);
+    return `${selectedCategories.join(',')}::${normalizedSearch}::${searchFrom}::${searchTo}::${showDuplicatesOnly ? 'dupes' : 'all'}::${showUntitledOnly ? 'only-untitled' : 'all-titles'}`;
+  }, [selectedCategories, debouncedSearch, searchFrom, searchTo, showDuplicatesOnly, showUntitledOnly]);
 
   useEffect(() => {
     try {
@@ -371,11 +371,11 @@ export default function Gallery({
   ), [filteredByCategory, showDuplicatesOnly, duplicateIdSet]);
 
   const filteredByTitle = useMemo(() => {
-    if (!hideUntitled) {
+    if (!showUntitledOnly) {
       return filteredBookmarks;
     }
-    return filteredBookmarks.filter((bookmark) => Boolean(bookmark.title?.trim()));
-  }, [filteredBookmarks, hideUntitled]);
+    return filteredBookmarks.filter((bookmark) => !bookmark.title?.trim());
+  }, [filteredBookmarks, showUntitledOnly]);
 
   const filteredByDate = useMemo(() => {
     if (!searchFrom && !searchTo) {
