@@ -112,6 +112,8 @@ export default function Gallery({
     DEFAULT_ITEMS_PER_PAGE
   );
   const lastSelectedIndexRef = useRef<number | null>(null);
+  const listTopRef = useRef<HTMLDivElement | null>(null);
+  const previousPageRef = useRef<number | null>(null);
 
   const paginationKey = useMemo(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
@@ -210,6 +212,13 @@ export default function Gallery({
   useEffect(() => {
     lastSelectedIndexRef.current = null;
   }, [currentPage, paginationKey]);
+
+  useEffect(() => {
+    if (previousPageRef.current !== null && previousPageRef.current !== currentPage) {
+      listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    previousPageRef.current = currentPage;
+  }, [currentPage]);
 
   const handleDeleteSelected = () => {
     if (selectedIds.length === 0) return;
@@ -709,6 +718,8 @@ export default function Gallery({
           )}
         </>
       )}
+
+      <div ref={listTopRef} />
 
       {totalBookmarks > 0 && <PaginationControls className="mb-4" showMeta={false} />}
 
