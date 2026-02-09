@@ -215,7 +215,7 @@ export default function Gallery({
 
   useEffect(() => {
     if (previousPageRef.current !== null && previousPageRef.current !== currentPage) {
-      listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      listTopRef.current?.scrollIntoView({ block: 'start' });
     }
     previousPageRef.current = currentPage;
   }, [currentPage]);
