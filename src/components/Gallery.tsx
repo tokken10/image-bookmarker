@@ -112,6 +112,9 @@ export default function Gallery({
     DEFAULT_ITEMS_PER_PAGE
   );
   const lastSelectedIndexRef = useRef<number | null>(null);
+  const listTopRef = useRef<HTMLDivElement | null>(null);
+  const previousPageRef = useRef<number | null>(null);
+  const [goToPageValue, setGoToPageValue] = useState('');
 
   const paginationKey = useMemo(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
@@ -210,6 +213,17 @@ export default function Gallery({
   useEffect(() => {
     lastSelectedIndexRef.current = null;
   }, [currentPage, paginationKey]);
+
+  useEffect(() => {
+    if (previousPageRef.current !== null && previousPageRef.current !== currentPage) {
+      listTopRef.current?.scrollIntoView({ block: 'start' });
+    }
+    previousPageRef.current = currentPage;
+  }, [currentPage]);
+
+  useEffect(() => {
+    setGoToPageValue(String(currentPage));
+  }, [currentPage]);
 
   const handleDeleteSelected = () => {
     if (selectedIds.length === 0) return;
@@ -514,7 +528,7 @@ export default function Gallery({
           </div>
         )}
         {totalPages > 1 && (
-          <div className="flex items-center gap-2 self-center sm:self-auto">
+          <div className="flex flex-wrap items-center gap-3 self-center sm:self-auto">
             <button
               type="button"
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -569,6 +583,38 @@ export default function Gallery({
             >
               Next
             </button>
+            <form
+              className="flex items-center gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const parsed = Number.parseInt(goToPageValue, 10);
+                if (Number.isNaN(parsed)) {
+                  setGoToPageValue(String(currentPage));
+                  return;
+                }
+                const clamped = Math.min(Math.max(parsed, 1), totalPages);
+                setCurrentPage(clamped);
+                setGoToPageValue(String(clamped));
+              }}
+            >
+              <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <span>Go to</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={goToPageValue}
+                  onChange={(event) => setGoToPageValue(event.target.value)}
+                  className="w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                />
+              </label>
+              <button
+                type="submit"
+                className="px-3 py-1.5 rounded-md text-sm font-medium bg-blue-600 text-white shadow hover:bg-blue-700"
+              >
+                Go
+              </button>
+            </form>
           </div>
         )}
       </div>
@@ -709,6 +755,8 @@ export default function Gallery({
           )}
         </>
       )}
+
+      <div ref={listTopRef} />
 
       {totalBookmarks > 0 && <PaginationControls className="mb-4" showMeta={false} />}
 
