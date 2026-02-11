@@ -727,7 +727,7 @@ export default function Gallery({
           )}
 
           {selectMode && (
-            <div className="mb-4 flex gap-2">
+            <div className="sticky top-0 z-30 mb-4 flex flex-wrap gap-2 rounded-md border border-gray-200 bg-white/95 p-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
               <button
                 type="button"
                 onClick={() => setBulkEditing(true)}
