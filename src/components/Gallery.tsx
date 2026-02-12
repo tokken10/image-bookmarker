@@ -197,7 +197,8 @@ export default function Gallery({
     e.stopPropagation();
     if (window.confirm('Are you sure you want to remove this bookmark?')) {
       removeBookmark(id);
-      setBookmarks(bookmarks.filter(bookmark => bookmark.id !== id));
+      setBookmarks(prev => prev.filter(bookmark => bookmark.id !== id));
+      setInfoVisibleId(null);
       onAddBookmark();
     }
   };
