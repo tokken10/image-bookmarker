@@ -17,13 +17,12 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Default the categories input to the currently selected category
     setCategories(selectedCategories.length > 0 ? selectedCategories.join(', ') : '');
   }, [selectedCategories]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
     if (!url.trim()) {
       setError('Please enter an image URL');
       return;
@@ -34,44 +33,44 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
       return;
     }
 
-    if (isDuplicateUrl(url)) {
-      moveBookmarkToFrontByUrl(url);
-      onAddBookmark();
-      setError('This image is already in your bookmarks.');
-      return;
-    }
-
     setIsSubmitting(true);
     setError('');
 
     try {
-      // Test if the image can be loaded
+      const duplicate = await isDuplicateUrl(url);
+      if (duplicate) {
+        await moveBookmarkToFrontByUrl(url);
+        onAddBookmark();
+        setError('This image is already in your bookmarks.');
+        return;
+      }
+
       await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = resolve;
-        img.onerror = () => reject(new Error('Failed to load image'));
-        img.src = url;
+        const image = new Image();
+        image.onload = resolve;
+        image.onerror = () => reject(new Error('Failed to load image'));
+        image.src = url;
       });
 
-      // Add to bookmarks if image loads successfully
-      addBookmark({
+      await addBookmark({
         url,
         title: title.trim() || undefined,
         sourceUrl: sourceUrl.trim() || undefined,
         categories: categories
           .split(',')
-          .map((c) => c.trim())
+          .map((category) => category.trim())
           .filter(Boolean),
       });
+
       setUrl('');
       setTitle('');
       setSourceUrl('');
       setCategories(selectedCategories.length > 0 ? selectedCategories.join(', ') : '');
       onAddBookmark();
       onClose();
-    } catch (err) {
-      console.error('Failed to load image:', err);
-      setError('Failed to load image. Please check the URL and try again.');
+    } catch (submitError) {
+      console.error('Failed to add bookmark:', submitError);
+      setError('Failed to add image. Please check the URL and try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -88,7 +87,7 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
             id="image-url"
             type="url"
             value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            onChange={(event) => setUrl(event.target.value)}
             placeholder="https://example.com/image.jpg"
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             disabled={isSubmitting}
@@ -104,13 +103,13 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
             id="source-url"
             type="url"
             value={sourceUrl}
-            onChange={(e) => setSourceUrl(e.target.value)}
+            onChange={(event) => setSourceUrl(event.target.value)}
             placeholder="https://example.com"
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             disabled={isSubmitting}
           />
         </div>
-        
+
         <div>
           <label htmlFor="image-title" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Title (optional)
@@ -119,7 +118,7 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
             id="image-title"
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(event) => setTitle(event.target.value)}
             placeholder="My beautiful image"
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             disabled={isSubmitting}
@@ -134,7 +133,7 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
             id="image-categories"
             type="text"
             value={categories}
-            onChange={(e) => setCategories(e.target.value)}
+            onChange={(event) => setCategories(event.target.value)}
             placeholder="e.g. nature, art"
             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white"
             disabled={isSubmitting}

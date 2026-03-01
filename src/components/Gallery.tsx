@@ -150,9 +150,29 @@ export default function Gallery({
   }, [search]);
 
   useEffect(() => {
-    const savedBookmarks = loadBookmarks();
-    setBookmarks(savedBookmarks);
-    setIsLoading(false);
+    let isActive = true;
+    setIsLoading(true);
+
+    const load = async () => {
+      try {
+        const savedBookmarks = await loadBookmarks();
+        if (isActive) {
+          setBookmarks(savedBookmarks);
+        }
+      } catch (error) {
+        console.error('Failed to load bookmarks:', error);
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void load();
+
+    return () => {
+      isActive = false;
+    };
   }, [refreshTrigger]);
 
   useEffect(() => {
@@ -193,12 +213,16 @@ export default function Gallery({
     return Array.from(set);
   }, [bookmarks]);
 
-  const handleRemove = (e: React.MouseEvent, id: string) => {
+  const handleRemove = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to remove this bookmark?')) {
-      removeBookmark(id);
-      setBookmarks(bookmarks.filter(bookmark => bookmark.id !== id));
-      onAddBookmark();
+      try {
+        await removeBookmark(id);
+        setBookmarks((prev) => prev.filter((bookmark) => bookmark.id !== id));
+        onAddBookmark();
+      } catch (error) {
+        console.error('Failed to remove bookmark:', error);
+      }
     }
   };
 
@@ -228,7 +252,7 @@ export default function Gallery({
     }
   }, [currentPage, isEditingGoToPage]);
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) return;
     if (
       window.confirm(
@@ -237,26 +261,34 @@ export default function Gallery({
         }?`
       )
     ) {
-      removeBookmarks(selectedIds);
-      setBookmarks(bookmarks.filter(b => !selectedIds.includes(b.id)));
-      setSelectedIds([]);
-      setSelectMode(false);
-      onAddBookmark();
+      try {
+        await removeBookmarks(selectedIds);
+        setBookmarks((prev) => prev.filter((bookmark) => !selectedIds.includes(bookmark.id)));
+        setSelectedIds([]);
+        setSelectMode(false);
+        onAddBookmark();
+      } catch (error) {
+        console.error('Failed to remove selected bookmarks:', error);
+      }
     }
   };
 
-  const handleBulkEditSave = (
+  const handleBulkEditSave = async (
     updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>
   ) => {
     if (selectedIds.length === 0) return;
     if (!('title' in updates) && !('categories' in updates)) return;
 
-    const updatedBookmarks = updateBookmarksBulk(selectedIds, updates);
-    setBookmarks(updatedBookmarks);
-    setSelectedIds([]);
-    setSelectMode(false);
-    setBulkEditing(false);
-    onAddBookmark();
+    try {
+      const updatedBookmarks = await updateBookmarksBulk(selectedIds, updates);
+      setBookmarks(updatedBookmarks);
+      setSelectedIds([]);
+      setSelectMode(false);
+      setBulkEditing(false);
+      onAddBookmark();
+    } catch (error) {
+      console.error('Failed to bulk update bookmarks:', error);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -286,15 +318,15 @@ export default function Gallery({
     let movedExisting = false;
 
     if (droppedUrl && isValidImageUrl(droppedUrl)) {
-      if (isDuplicateUrl(droppedUrl)) {
-        const reordered = moveBookmarkToFrontByUrl(droppedUrl);
+      if (await isDuplicateUrl(droppedUrl)) {
+        const reordered = await moveBookmarkToFrontByUrl(droppedUrl);
         if (reordered) {
           setBookmarks(reordered);
           movedExisting = true;
         }
         errors.push('This image is already in your bookmarks.');
       } else {
-        const bookmark = addBookmark({
+        const bookmark = await addBookmark({
           url: droppedUrl,
           categories: selectedCategories.length > 0 ? selectedCategories : undefined,
         });
@@ -315,8 +347,8 @@ export default function Gallery({
       }
       try {
         const dataUrl = await readFileAsDataUrl(file);
-        if (isDuplicateUrl(dataUrl)) {
-          const reordered = moveBookmarkToFrontByUrl(dataUrl);
+        if (await isDuplicateUrl(dataUrl)) {
+          const reordered = await moveBookmarkToFrontByUrl(dataUrl);
           if (reordered) {
             setBookmarks(reordered);
             movedExisting = true;
@@ -324,7 +356,7 @@ export default function Gallery({
           errors.push(`${file.name} is already in your bookmarks.`);
           continue;
         }
-        const bookmark = addBookmark({
+        const bookmark = await addBookmark({
           url: dataUrl,
           title: file.name,
           mimeType: info.mimeType,
@@ -742,7 +774,7 @@ export default function Gallery({
               </button>
               <button
                 type="button"
-                onClick={handleDeleteSelected}
+                onClick={() => void handleDeleteSelected()}
                 disabled={selectedIds.length === 0}
                 className={`px-3 py-1 rounded-md text-white font-medium ${
                   selectedIds.length === 0
@@ -1000,7 +1032,9 @@ export default function Gallery({
                       </button>
 
                       <button
-                        onClick={(e) => handleRemove(e, bookmark.id)}
+                        onClick={(e) => {
+                          void handleRemove(e, bookmark.id);
+                        }}
                         className={`absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full transition-opacity z-20 hover:bg-red-600 ${
                           infoVisibleId === bookmark.id
                             ? 'opacity-100'

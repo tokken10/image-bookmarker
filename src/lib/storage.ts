@@ -1,8 +1,14 @@
 import type { ImageBookmark } from '../types';
-import { buildSearchTokens } from '../utils/search';
 import { defaultImages } from '../data/defaultImages';
+import { buildSearchTokens } from '../utils/search';
+import { isSupabaseConfigured, supabase } from './supabase';
 
 const STORAGE_KEY = 'imageBookmarks:v1';
+const CUSTOM_CATEGORIES_KEY = 'imageBookmarks:customCategories:v1';
+const SHUFFLE_BACKUP_KEY = 'imageBookmarks:shuffleBackup:v1';
+
+export const LEGACY_BOOKMARKS_STORAGE_KEY = STORAGE_KEY;
+export const LEGACY_CUSTOM_CATEGORIES_STORAGE_KEY = CUSTOM_CATEGORIES_KEY;
 
 export type BookmarkImport = {
   url: string;
@@ -14,289 +20,756 @@ export type BookmarkImport = {
   createdAt?: number;
 };
 
+type BookmarkRow = {
+  id: string;
+  user_id: string;
+  url: string;
+  mime_type: string | null;
+  media_type: 'image' | 'video' | null;
+  title: string | null;
+  source_url: string | null;
+  categories: string[] | null;
+  topics: string[] | null;
+  search_tokens: string[] | null;
+  created_at: string;
+};
+
+type CustomCategoryRow = {
+  id: string;
+  user_id: string;
+  name: string;
+};
+
+type BookmarkCreateInput = Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>;
+type BookmarkUpdateInput = Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>;
+
+type ShuffleBackup = Record<string, number>;
+
+function assertSupabaseConfigured(): void {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase is not configured.');
+  }
+}
+
+async function requireAuthenticatedUserId(): Promise<string> {
+  assertSupabaseConfigured();
+
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    throw error;
+  }
+
+  const userId = data.user?.id;
+  if (!userId) {
+    throw new Error('User is not authenticated.');
+  }
+
+  return userId;
+}
+
+function toIsoDate(value?: number): string {
+  return new Date(value ?? Date.now()).toISOString();
+}
+
+function normalizeCategoryList(categories?: string[]): string[] {
+  if (!categories) {
+    return [];
+  }
+
+  const unique = new Set(
+    categories
+      .map((category) => category.trim())
+      .filter(Boolean)
+  );
+
+  return Array.from(unique);
+}
+
+function normalizeOptionalText(value?: string): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function deriveMediaType(
+  mimeType?: string,
+  mediaType?: 'image' | 'video'
+): 'image' | 'video' {
+  if (mediaType) {
+    return mediaType;
+  }
+
+  if (mimeType?.startsWith('video/')) {
+    return 'video';
+  }
+
+  return 'image';
+}
+
+function rowToBookmark(row: BookmarkRow): ImageBookmark {
+  const bookmark: ImageBookmark = {
+    id: row.id,
+    url: row.url,
+    mimeType: row.mime_type ?? undefined,
+    mediaType: row.media_type ?? undefined,
+    title: row.title ?? undefined,
+    sourceUrl: row.source_url ?? undefined,
+    categories: row.categories && row.categories.length > 0 ? row.categories : undefined,
+    topics: row.topics && row.topics.length > 0 ? row.topics : undefined,
+    createdAt: Date.parse(row.created_at),
+    searchTokens: row.search_tokens && row.search_tokens.length > 0 ? row.search_tokens : undefined,
+  };
+
+  if (!Number.isFinite(bookmark.createdAt)) {
+    bookmark.createdAt = Date.now();
+  }
+
+  if (!bookmark.searchTokens) {
+    bookmark.searchTokens = buildSearchTokens(bookmark);
+  }
+
+  return bookmark;
+}
+
+function toUpsertRow(
+  bookmark: ImageBookmark,
+  userId: string,
+  createdAt?: number
+): BookmarkRow {
+  return {
+    id: bookmark.id,
+    user_id: userId,
+    url: bookmark.url,
+    mime_type: bookmark.mimeType ?? null,
+    media_type: bookmark.mediaType ?? null,
+    title: bookmark.title ?? null,
+    source_url: bookmark.sourceUrl ?? null,
+    categories: bookmark.categories ?? [],
+    topics: bookmark.topics ?? [],
+    search_tokens: bookmark.searchTokens ?? buildSearchTokens(bookmark),
+    created_at: toIsoDate(createdAt ?? bookmark.createdAt),
+  };
+}
+
+function parseLegacyBookmarks(): ImageBookmark[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as Array<ImageBookmark & { category?: string }>;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((entry): entry is ImageBookmark & { category?: string } => Boolean(entry?.url))
+      .map((entry) => {
+        const categories = normalizeCategoryList(
+          entry.categories ?? (entry.category ? [entry.category] : undefined)
+        );
+
+        const bookmark: ImageBookmark = {
+          id: entry.id || crypto.randomUUID(),
+          url: entry.url,
+          mimeType: entry.mimeType,
+          mediaType: entry.mediaType,
+          title: normalizeOptionalText(entry.title),
+          sourceUrl: normalizeOptionalText(entry.sourceUrl),
+          categories: categories.length > 0 ? categories : undefined,
+          topics: entry.topics,
+          createdAt: Number.isFinite(entry.createdAt) ? entry.createdAt : Date.now(),
+          searchTokens: entry.searchTokens,
+        };
+
+        if (!bookmark.searchTokens) {
+          bookmark.searchTokens = buildSearchTokens(bookmark);
+        }
+
+        return bookmark;
+      });
+  } catch (error) {
+    console.error('Failed to parse legacy local bookmarks:', error);
+    return [];
+  }
+}
+
+function saveShuffleBackup(bookmarks: ImageBookmark[]): void {
+  try {
+    const backup: ShuffleBackup = {};
+    bookmarks.forEach((bookmark) => {
+      backup[bookmark.id] = bookmark.createdAt;
+    });
+    localStorage.setItem(SHUFFLE_BACKUP_KEY, JSON.stringify(backup));
+  } catch (error) {
+    console.error('Failed to save shuffle backup:', error);
+  }
+}
+
+function loadShuffleBackup(): ShuffleBackup | null {
+  try {
+    const raw = localStorage.getItem(SHUFFLE_BACKUP_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as ShuffleBackup;
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+
+    return parsed;
+  } catch (error) {
+    console.error('Failed to parse shuffle backup:', error);
+    return null;
+  }
+}
+
+function clearShuffleBackup(): void {
+  try {
+    localStorage.removeItem(SHUFFLE_BACKUP_KEY);
+  } catch (error) {
+    console.error('Failed to clear shuffle backup:', error);
+  }
+}
+
+async function fetchBookmarksForUser(userId: string): Promise<BookmarkRow[]> {
+  const { data, error } = await supabase
+    .from('bookmarks')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as BookmarkRow[];
+}
+
+async function seedDefaultsIfNeeded(userId: string): Promise<void> {
+  const existing = await fetchBookmarksForUser(userId);
+  if (existing.length > 0) {
+    return;
+  }
+
+  const now = Date.now();
+  const rows: BookmarkRow[] = defaultImages.map((image, index) => {
+    const bookmark: ImageBookmark = {
+      id: crypto.randomUUID(),
+      url: image.url,
+      title: image.title,
+      categories: image.categories,
+      createdAt: now + (defaultImages.length - index),
+      mediaType: 'image',
+    };
+
+    bookmark.searchTokens = buildSearchTokens(bookmark);
+
+    return toUpsertRow(bookmark, userId, bookmark.createdAt);
+  });
+
+  if (rows.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase.from('bookmarks').insert(rows);
+  if (error) {
+    throw error;
+  }
+}
+
+async function updateRows(rows: Array<Partial<BookmarkRow> & { id: string; user_id: string }>): Promise<void> {
+  if (rows.length === 0) {
+    return;
+  }
+
+  const results = await Promise.all(
+    rows.map(async (row) => {
+      const { id, user_id: userId, ...patch } = row;
+      const { error } = await supabase
+        .from('bookmarks')
+        .update(patch)
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      return error;
+    })
+  );
+
+  const failed = results.find((result) => result !== null);
+  if (failed) {
+    throw failed;
+  }
+}
+
 export function normalizeBookmarkUrl(value: string): string {
   const trimmed = value.trim();
   try {
     const parsed = new URL(trimmed);
     parsed.hash = '';
     const normalizedPath = parsed.pathname.replace(/\/+$/, '');
-    const normalizedSearch = parsed.search;
-    return `${parsed.origin}${normalizedPath || '/'}${normalizedSearch}`;
+    return `${parsed.origin}${normalizedPath || '/'}${parsed.search}`;
   } catch {
     return trimmed.replace(/\s+/g, '');
   }
 }
 
-export function isDuplicateUrl(url: string): boolean {
-  const normalized = normalizeBookmarkUrl(url);
-  return loadBookmarks().some(
-    (bookmark) => normalizeBookmarkUrl(bookmark.url) === normalized,
-  );
-}
+export async function loadBookmarks(): Promise<ImageBookmark[]> {
+  const userId = await requireAuthenticatedUserId();
+  await seedDefaultsIfNeeded(userId);
 
-export function moveBookmarkToFrontByUrl(url: string): ImageBookmark[] | null {
-  const normalized = normalizeBookmarkUrl(url);
-  const bookmarks = loadBookmarks();
-  const index = bookmarks.findIndex(
-    (bookmark) => normalizeBookmarkUrl(bookmark.url) === normalized,
-  );
-  if (index === -1) {
-    return null;
+  const rows = await fetchBookmarksForUser(userId);
+  const bookmarks = rows.map(rowToBookmark);
+
+  const missingTokens = bookmarks.filter((_bookmark, index) => {
+    const rowTokens = rows[index]?.search_tokens;
+    return !rowTokens || rowTokens.length === 0;
+  });
+
+  if (missingTokens.length > 0) {
+    const updates = missingTokens.map((bookmark) => ({
+      id: bookmark.id,
+      user_id: userId,
+      search_tokens: buildSearchTokens(bookmark),
+    }));
+
+    try {
+      await updateRows(updates);
+    } catch (error) {
+      console.error('Failed to backfill search tokens:', error);
+    }
   }
-  const [match] = bookmarks.splice(index, 1);
-  if (match) {
-    bookmarks.unshift(match);
-  }
-  saveBookmarks(bookmarks);
+
   return bookmarks;
 }
 
-export function loadBookmarks(): ImageBookmark[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed: (ImageBookmark & { category?: string })[] = raw
-      ? JSON.parse(raw)
-      : [];
-    let changed = false;
-    const normalized: ImageBookmark[] = parsed.map((b) => {
-      const copy: ImageBookmark & { category?: string } = { ...b };
-      if (copy.category && !copy.categories) {
-        copy.categories = [copy.category];
-        delete copy.category;
-        changed = true;
-      }
-      if (!copy.searchTokens) {
-        copy.searchTokens = buildSearchTokens(copy);
-        changed = true;
-      }
-      return copy as ImageBookmark;
-    });
-    if (changed) {
-      saveBookmarks(normalized);
-    }
-    if (normalized.length === 0) {
-      const defaults: ImageBookmark[] = defaultImages.map((img, index) => {
-        const bookmark: ImageBookmark = {
-          id: crypto.randomUUID(),
-          url: img.url,
-          title: img.title,
-          categories: img.categories,
-          createdAt: Date.now() + index,
-        };
-        bookmark.searchTokens = buildSearchTokens(bookmark);
-        return bookmark;
-      });
-      saveBookmarks(defaults);
-      return defaults;
-    }
-    return normalized;
-  } catch (error) {
-    console.error('Failed to load bookmarks:', error);
-    return [];
-  }
+export async function isDuplicateUrl(url: string): Promise<boolean> {
+  const normalized = normalizeBookmarkUrl(url);
+  const bookmarks = await loadBookmarks();
+  return bookmarks.some((bookmark) => normalizeBookmarkUrl(bookmark.url) === normalized);
 }
 
-export function saveBookmarks(bookmarks: ImageBookmark[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(bookmarks));
-  } catch (error) {
-    console.error('Failed to save bookmarks:', error);
+export async function moveBookmarkToFrontByUrl(url: string): Promise<ImageBookmark[] | null> {
+  const normalized = normalizeBookmarkUrl(url);
+  const bookmarks = await loadBookmarks();
+  const match = bookmarks.find((bookmark) => normalizeBookmarkUrl(bookmark.url) === normalized);
+
+  if (!match) {
+    return null;
   }
+
+  const userId = await requireAuthenticatedUserId();
+  const { error } = await supabase
+    .from('bookmarks')
+    .update({ created_at: toIsoDate(Date.now() + 1) })
+    .eq('id', match.id)
+    .eq('user_id', userId);
+
+  if (error) {
+    throw error;
+  }
+
+  return loadBookmarks();
 }
 
-export function addBookmark(
-  bookmark: Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>
-): ImageBookmark {
-  const bookmarks = loadBookmarks();
-  const newBookmark: ImageBookmark = {
-    ...bookmark,
+export async function addBookmark(bookmark: BookmarkCreateInput): Promise<ImageBookmark> {
+  const userId = await requireAuthenticatedUserId();
+
+  const normalizedCategories = normalizeCategoryList(bookmark.categories);
+  const createdAt = Date.now();
+  const nextBookmark: ImageBookmark = {
     id: crypto.randomUUID(),
-    createdAt: Date.now(),
+    url: bookmark.url.trim(),
+    title: normalizeOptionalText(bookmark.title),
+    sourceUrl: normalizeOptionalText(bookmark.sourceUrl),
+    mimeType: normalizeOptionalText(bookmark.mimeType),
+    mediaType: deriveMediaType(bookmark.mimeType, bookmark.mediaType),
+    categories: normalizedCategories.length > 0 ? normalizedCategories : undefined,
+    topics: bookmark.topics,
+    createdAt,
   };
 
-  if (!newBookmark.mediaType) {
-    if (newBookmark.mimeType?.startsWith('video/')) {
-      newBookmark.mediaType = 'video';
-    } else {
-      newBookmark.mediaType = 'image';
-    }
+  nextBookmark.searchTokens = buildSearchTokens(nextBookmark);
+
+  const row = toUpsertRow(nextBookmark, userId, createdAt);
+
+  const { data, error } = await supabase.from('bookmarks').insert(row).select('*').single();
+  if (error) {
+    throw error;
   }
 
-  if (newBookmark.categories) {
-    newBookmark.categories = newBookmark.categories
-      .map((c) => c.trim())
-      .filter(Boolean);
-    if (newBookmark.categories.length === 0) {
-      delete newBookmark.categories;
-    }
-  }
-
-  newBookmark.searchTokens = buildSearchTokens(newBookmark);
-  
-  const updatedBookmarks = [newBookmark, ...bookmarks];
-  saveBookmarks(updatedBookmarks);
-  return newBookmark;
+  return rowToBookmark(data as BookmarkRow);
 }
 
-export function addBookmarksFromImport(entries: BookmarkImport[]): {
+export async function addBookmarksFromImport(entries: BookmarkImport[]): Promise<{
   added: number;
   skipped: number;
-} {
-  const bookmarks = loadBookmarks();
+}> {
+  const userId = await requireAuthenticatedUserId();
+  const existingBookmarks = await loadBookmarks();
   const normalizedUrls = new Set(
-    bookmarks.map((bookmark) => normalizeBookmarkUrl(bookmark.url)),
+    existingBookmarks.map((bookmark) => normalizeBookmarkUrl(bookmark.url))
   );
 
-  let added = 0;
   let skipped = 0;
+  const rowsToInsert: BookmarkRow[] = [];
 
-  entries.forEach((entry) => {
-    const normalizedUrl = normalizeBookmarkUrl(entry.url);
-    if (!entry.url.trim() || normalizedUrls.has(normalizedUrl)) {
+  entries.forEach((entry, index) => {
+    const trimmedUrl = entry.url.trim();
+    const normalizedUrl = normalizeBookmarkUrl(trimmedUrl);
+
+    if (!trimmedUrl || normalizedUrls.has(normalizedUrl)) {
       skipped += 1;
       return;
     }
 
-    const nextBookmark: ImageBookmark = {
+    const categories = normalizeCategoryList(entry.categories);
+
+    const bookmark: ImageBookmark = {
       id: crypto.randomUUID(),
-      url: entry.url.trim(),
-      title: entry.title?.trim() || undefined,
-      sourceUrl: entry.sourceUrl?.trim() || undefined,
-      mimeType: entry.mimeType?.trim() || undefined,
-      mediaType: entry.mediaType,
-      categories: entry.categories?.map((cat) => cat.trim()).filter(Boolean),
-      createdAt: entry.createdAt ?? Date.now(),
+      url: trimmedUrl,
+      title: normalizeOptionalText(entry.title),
+      sourceUrl: normalizeOptionalText(entry.sourceUrl),
+      mimeType: normalizeOptionalText(entry.mimeType),
+      mediaType: deriveMediaType(entry.mimeType, entry.mediaType),
+      categories: categories.length > 0 ? categories : undefined,
+      createdAt: entry.createdAt ?? Date.now() + index,
     };
 
-    if (!nextBookmark.mediaType) {
-      if (nextBookmark.mimeType?.startsWith('video/')) {
-        nextBookmark.mediaType = 'video';
-      } else {
-        nextBookmark.mediaType = 'image';
-      }
-    }
+    bookmark.searchTokens = buildSearchTokens(bookmark);
 
-    if (nextBookmark.categories && nextBookmark.categories.length === 0) {
-      delete nextBookmark.categories;
-    }
-
-    nextBookmark.searchTokens = buildSearchTokens(nextBookmark);
-    bookmarks.unshift(nextBookmark);
+    rowsToInsert.push(toUpsertRow(bookmark, userId, bookmark.createdAt));
     normalizedUrls.add(normalizedUrl);
-    added += 1;
   });
 
-  if (added > 0) {
-    saveBookmarks(bookmarks);
+  if (rowsToInsert.length === 0) {
+    return { added: 0, skipped };
   }
 
+  const { data, error } = await supabase.from('bookmarks').insert(rowsToInsert).select('id');
+  if (error) {
+    throw error;
+  }
+
+  const added = data?.length ?? rowsToInsert.length;
   return { added, skipped };
 }
 
-export function updateBookmark(
+export async function updateBookmark(
   id: string,
-  updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>
-): ImageBookmark | null {
-  const bookmarks = loadBookmarks();
-  const index = bookmarks.findIndex(bookmark => bookmark.id === id);
-  if (index === -1) return null;
+  updates: BookmarkUpdateInput
+): Promise<ImageBookmark | null> {
+  const userId = await requireAuthenticatedUserId();
 
-  const updatedBookmark: ImageBookmark = {
-    ...bookmarks[index],
+  const { data, error } = await supabase
+    .from('bookmarks')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  const current = rowToBookmark(data as BookmarkRow);
+  const categories =
+    'categories' in updates
+      ? normalizeCategoryList(updates.categories)
+      : current.categories;
+
+  const nextBookmark: ImageBookmark = {
+    ...current,
     ...updates,
+    title: 'title' in updates ? normalizeOptionalText(updates.title) : current.title,
+    sourceUrl:
+      'sourceUrl' in updates
+        ? normalizeOptionalText(updates.sourceUrl)
+        : current.sourceUrl,
+    mimeType: 'mimeType' in updates ? normalizeOptionalText(updates.mimeType) : current.mimeType,
+    categories:
+      'categories' in updates
+        ? categories && categories.length > 0
+          ? categories
+          : undefined
+        : current.categories,
   };
-  updatedBookmark.searchTokens = buildSearchTokens(updatedBookmark);
 
-  bookmarks[index] = updatedBookmark;
-  saveBookmarks(bookmarks);
-  return updatedBookmark;
+  nextBookmark.searchTokens = buildSearchTokens(nextBookmark);
+
+  const patch = toUpsertRow(nextBookmark, userId, nextBookmark.createdAt);
+
+  const { data: updatedRow, error: updateError } = await supabase
+    .from('bookmarks')
+    .update({
+      url: patch.url,
+      mime_type: patch.mime_type,
+      media_type: patch.media_type,
+      title: patch.title,
+      source_url: patch.source_url,
+      categories: patch.categories,
+      topics: patch.topics,
+      search_tokens: patch.search_tokens,
+    })
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select('*')
+    .maybeSingle();
+
+  if (updateError) {
+    throw updateError;
+  }
+
+  if (!updatedRow) {
+    return null;
+  }
+
+  return rowToBookmark(updatedRow as BookmarkRow);
 }
 
-export function updateBookmarksBulk(
+export async function updateBookmarksBulk(
   ids: string[],
-  updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>
-): ImageBookmark[] {
-  const idSet = new Set(ids);
-  const bookmarks = loadBookmarks();
-  const normalizedUpdates = { ...updates };
-
-  if ('title' in normalizedUpdates) {
-    const trimmedTitle = normalizedUpdates.title?.trim() ?? '';
-    normalizedUpdates.title = trimmedTitle ? trimmedTitle : undefined;
+  updates: BookmarkUpdateInput
+): Promise<ImageBookmark[]> {
+  const userId = await requireAuthenticatedUserId();
+  if (ids.length === 0) {
+    return loadBookmarks();
   }
 
-  if ('categories' in normalizedUpdates) {
-    const trimmedCategories = normalizedUpdates.categories
-      ?.map((c) => c.trim())
-      .filter(Boolean) ?? [];
-    normalizedUpdates.categories = trimmedCategories.length > 0 ? trimmedCategories : undefined;
+  const { data, error } = await supabase
+    .from('bookmarks')
+    .select('*')
+    .eq('user_id', userId)
+    .in('id', ids);
+
+  if (error) {
+    throw error;
   }
 
-  const updatedBookmarks = bookmarks.map((bookmark) => {
-    if (!idSet.has(bookmark.id)) {
-      return bookmark;
-    }
+  const rows = (data ?? []) as BookmarkRow[];
+  if (rows.length === 0) {
+    return loadBookmarks();
+  }
 
-    const updatedBookmark: ImageBookmark = {
-      ...bookmark,
-      ...normalizedUpdates,
+  const normalizedTitle = 'title' in updates ? normalizeOptionalText(updates.title) : undefined;
+  const normalizedCategories =
+    'categories' in updates ? normalizeCategoryList(updates.categories) : undefined;
+
+  const rowsToUpsert: BookmarkRow[] = rows.map((row) => {
+    const current = rowToBookmark(row);
+
+    const nextBookmark: ImageBookmark = {
+      ...current,
+      ...updates,
+      title: 'title' in updates ? normalizedTitle : current.title,
+      categories:
+        'categories' in updates
+          ? normalizedCategories && normalizedCategories.length > 0
+            ? normalizedCategories
+            : undefined
+          : current.categories,
     };
-    updatedBookmark.searchTokens = buildSearchTokens(updatedBookmark);
-    return updatedBookmark;
+
+    nextBookmark.searchTokens = buildSearchTokens(nextBookmark);
+
+    return toUpsertRow(nextBookmark, userId, nextBookmark.createdAt);
   });
 
-  saveBookmarks(updatedBookmarks);
-  return updatedBookmarks;
+  await updateRows(rowsToUpsert);
+  return loadBookmarks();
 }
 
-export function removeBookmark(id: string): void {
-  const bookmarks = loadBookmarks().filter(bookmark => bookmark.id !== id);
-  saveBookmarks(bookmarks);
-}
+export async function removeBookmark(id: string): Promise<void> {
+  const userId = await requireAuthenticatedUserId();
 
-export function removeBookmarks(ids: string[]): void {
-  const idSet = new Set(ids);
-  const bookmarks = loadBookmarks().filter(bookmark => !idSet.has(bookmark.id));
-  saveBookmarks(bookmarks);
-}
+  const { error } = await supabase
+    .from('bookmarks')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId);
 
-export function shuffleBookmarks(): ImageBookmark[] {
-  const bookmarks = loadBookmarks();
-  for (let i = bookmarks.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [bookmarks[i], bookmarks[j]] = [bookmarks[j], bookmarks[i]];
+  if (error) {
+    throw error;
   }
-  saveBookmarks(bookmarks);
-  return bookmarks;
 }
 
-export function reorderBookmarks(): ImageBookmark[] {
-  const bookmarks = loadBookmarks();
-  bookmarks.sort((a, b) => b.createdAt - a.createdAt);
-  saveBookmarks(bookmarks);
-  return bookmarks;
+export async function removeBookmarks(ids: string[]): Promise<void> {
+  const userId = await requireAuthenticatedUserId();
+  if (ids.length === 0) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from('bookmarks')
+    .delete()
+    .eq('user_id', userId)
+    .in('id', ids);
+
+  if (error) {
+    throw error;
+  }
 }
 
-export function removeCategoryFromBookmarks(category: string): ImageBookmark[] {
-  const bookmarks = loadBookmarks();
-  const updated = bookmarks.map((bookmark) => {
-    if (!bookmark.categories) {
-      return bookmark;
+export async function shuffleBookmarks(): Promise<ImageBookmark[]> {
+  const userId = await requireAuthenticatedUserId();
+  const bookmarks = await loadBookmarks();
+
+  saveShuffleBackup(bookmarks);
+
+  const shuffled = [...bookmarks];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+  }
+
+  const base = Date.now() + shuffled.length + 1;
+  const updates = shuffled.map((bookmark, index) => ({
+    id: bookmark.id,
+    user_id: userId,
+    created_at: toIsoDate(base - index),
+  }));
+
+  await updateRows(updates);
+  return loadBookmarks();
+}
+
+export async function reorderBookmarks(): Promise<ImageBookmark[]> {
+  const userId = await requireAuthenticatedUserId();
+  const backup = loadShuffleBackup();
+
+  if (!backup) {
+    return loadBookmarks();
+  }
+
+  const ids = Object.keys(backup);
+  if (ids.length === 0) {
+    clearShuffleBackup();
+    return loadBookmarks();
+  }
+
+  const updates = ids.map((id) => ({
+    id,
+    user_id: userId,
+    created_at: toIsoDate(backup[id]),
+  }));
+
+  await updateRows(updates);
+  clearShuffleBackup();
+  return loadBookmarks();
+}
+
+export async function removeCategoryFromBookmarks(category: string): Promise<ImageBookmark[]> {
+  const userId = await requireAuthenticatedUserId();
+  const bookmarks = await loadBookmarks();
+
+  const rowsToUpdate: BookmarkRow[] = bookmarks
+    .filter((bookmark) => bookmark.categories?.includes(category))
+    .map((bookmark) => {
+      const filtered = bookmark.categories?.filter((item) => item !== category) ?? [];
+
+      const nextBookmark: ImageBookmark = {
+        ...bookmark,
+        categories: filtered.length > 0 ? filtered : undefined,
+      };
+
+      nextBookmark.searchTokens = buildSearchTokens(nextBookmark);
+
+      return toUpsertRow(nextBookmark, userId, nextBookmark.createdAt);
+    });
+
+  await updateRows(rowsToUpdate);
+  return loadBookmarks();
+}
+
+export async function loadCustomCategories(): Promise<string[]> {
+  const userId = await requireAuthenticatedUserId();
+
+  const { data, error } = await supabase
+    .from('custom_categories')
+    .select('*')
+    .eq('user_id', userId)
+    .order('name', { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  const rows = (data ?? []) as CustomCategoryRow[];
+  const unique = new Set(rows.map((row) => row.name.trim()).filter(Boolean));
+  return Array.from(unique);
+}
+
+export async function saveCustomCategories(categories: string[]): Promise<void> {
+  const userId = await requireAuthenticatedUserId();
+  const normalized = normalizeCategoryList(categories);
+
+  const { error: deleteError } = await supabase
+    .from('custom_categories')
+    .delete()
+    .eq('user_id', userId);
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  if (normalized.length === 0) {
+    return;
+  }
+
+  const rows: CustomCategoryRow[] = normalized.map((name) => ({
+    id: crypto.randomUUID(),
+    user_id: userId,
+    name,
+  }));
+
+  const { error: insertError } = await supabase.from('custom_categories').insert(rows);
+  if (insertError) {
+    throw insertError;
+  }
+}
+
+export function loadLegacyLocalBookmarks(): ImageBookmark[] {
+  return parseLegacyBookmarks();
+}
+
+export function loadLegacyCustomCategories(): string[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
+    if (!raw) {
+      return [];
     }
-    const filtered = bookmark.categories.filter((cat) => cat !== category);
-    if (filtered.length === bookmark.categories.length) {
-      return bookmark;
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
     }
-    const next: ImageBookmark = {
-      ...bookmark,
-      categories: filtered.length > 0 ? filtered : undefined,
-    };
-    if (!next.categories) {
-      delete next.categories;
-    }
-    next.searchTokens = buildSearchTokens(next);
-    return next;
-  });
-  saveBookmarks(updated);
-  return updated;
+
+    return normalizeCategoryList(
+      parsed.filter((entry): entry is string => typeof entry === 'string')
+    );
+  } catch (error) {
+    console.error('Failed to parse legacy custom categories:', error);
+    return [];
+  }
+}
+
+export function clearLegacyLocalBookmarks(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.error('Failed to clear legacy bookmarks:', error);
+  }
+}
+
+export function clearLegacyCustomCategories(): void {
+  try {
+    localStorage.removeItem(CUSTOM_CATEGORIES_KEY);
+  } catch (error) {
+    console.error('Failed to clear legacy custom categories:', error);
+  }
 }

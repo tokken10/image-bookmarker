@@ -1,14 +1,22 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ImageBookmark } from './types';
 import {
-  loadBookmarks,
   addBookmarksFromImport,
+  clearLegacyCustomCategories,
+  clearLegacyLocalBookmarks,
+  loadBookmarks,
+  loadCustomCategories,
+  loadLegacyCustomCategories,
+  loadLegacyLocalBookmarks,
   removeCategoryFromBookmarks,
   reorderBookmarks,
+  saveCustomCategories,
   shuffleBookmarks,
 } from './lib/storage';
 import { buildBookmarksCsv, parseBookmarksCsv } from './utils/csv';
+import { useAuth } from './auth/useAuth';
 import Header from './components/Header';
+import AuthScreen from './components/AuthScreen';
 import InputBar from './components/InputBar';
 import Gallery from './components/Gallery';
 import Lightbox from './components/Lightbox';
@@ -16,10 +24,11 @@ import CategorySelector from './components/CategorySelector';
 import ScrollToTopButton from './components/ScrollToTopButton';
 import ScrollToBottomButton from './components/ScrollToBottomButton';
 
-const CUSTOM_CATEGORIES_KEY = 'imageBookmarks:customCategories:v1';
+const MIGRATION_STATE_KEY_PREFIX = 'imageBookmarks:migrationState:';
 
 export default function App() {
-  console.log('App component rendering...');
+  const { user, loading: authLoading, signOut, isConfigured } = useAuth();
+  const userId = user?.id ?? null;
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -35,84 +44,205 @@ export default function App() {
   const [csvError, setCsvError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Load bookmarks on initial render
   useEffect(() => {
-    console.log('Loading bookmarks...');
-    try {
-      const savedBookmarks = loadBookmarks();
-      console.log('Loaded bookmarks:', savedBookmarks);
-      setBookmarks(savedBookmarks);
-    } catch (error) {
-      console.error('Error loading bookmarks:', error);
+    if (!userId) {
+      setBookmarks([]);
+      return;
     }
-  }, [refreshTrigger]);
+
+    let isActive = true;
+
+    const load = async () => {
+      try {
+        const savedBookmarks = await loadBookmarks();
+        if (isActive) {
+          setBookmarks(savedBookmarks);
+        }
+      } catch (error) {
+        console.error('Error loading bookmarks:', error);
+      }
+    };
+
+    void load();
+
+    return () => {
+      isActive = false;
+    };
+  }, [refreshTrigger, userId]);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(CUSTOM_CATEGORIES_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          const sanitized = parsed
-            .map((cat) => (typeof cat === 'string' ? cat.trim() : ''))
-            .filter((cat): cat is string => Boolean(cat));
-          const unique = Array.from(new Set(sanitized));
-          setCustomCategories(unique);
+    if (!userId) {
+      setCustomCategories([]);
+      return;
+    }
+
+    let isActive = true;
+
+    const load = async () => {
+      try {
+        const loaded = await loadCustomCategories();
+        if (isActive) {
+          setCustomCategories(loaded);
+        }
+      } catch (error) {
+        console.error('Failed to load custom categories:', error);
+      }
+    };
+
+    void load();
+
+    return () => {
+      isActive = false;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
+    let isActive = true;
+
+    const migrateLegacyData = async () => {
+      const migrationStateKey = `${MIGRATION_STATE_KEY_PREFIX}${userId}`;
+      const migrationState = localStorage.getItem(migrationStateKey);
+      if (migrationState === 'done' || migrationState === 'in-progress') {
+        return;
+      }
+
+      localStorage.setItem(migrationStateKey, 'in-progress');
+
+      try {
+        const legacyBookmarks = loadLegacyLocalBookmarks();
+        const legacyCategories = loadLegacyCustomCategories();
+
+        if (legacyBookmarks.length === 0 && legacyCategories.length === 0) {
+          localStorage.setItem(migrationStateKey, 'done');
+          return;
+        }
+
+        const shouldImport = window.confirm(
+          `You have ${legacyBookmarks.length} local bookmark${legacyBookmarks.length === 1 ? '' : 's'} and ${legacyCategories.length} local custom categor${legacyCategories.length === 1 ? 'y' : 'ies'}. Import them to your account?`
+        );
+
+        if (!shouldImport) {
+          localStorage.setItem(migrationStateKey, 'done');
+          return;
+        }
+
+        let imported = 0;
+        let skipped = 0;
+
+        if (legacyBookmarks.length > 0) {
+          const result = await addBookmarksFromImport(
+            legacyBookmarks.map((bookmark) => ({
+              url: bookmark.url,
+              title: bookmark.title,
+              sourceUrl: bookmark.sourceUrl,
+              categories: bookmark.categories,
+              mimeType: bookmark.mimeType,
+              mediaType: bookmark.mediaType,
+              createdAt: bookmark.createdAt,
+            }))
+          );
+
+          imported = result.added;
+          skipped = result.skipped;
+          clearLegacyLocalBookmarks();
+        }
+
+        if (legacyCategories.length > 0) {
+          const remoteCategories = await loadCustomCategories();
+          const merged = Array.from(new Set([...remoteCategories, ...legacyCategories]));
+          await saveCustomCategories(merged);
+          clearLegacyCustomCategories();
+
+          if (isActive) {
+            setCustomCategories(merged);
+          }
+        }
+
+        if (isActive) {
+          setCsvStatus(
+            `Migration complete: imported ${imported} bookmark${imported === 1 ? '' : 's'}${skipped ? `, skipped ${skipped}` : ''}.`
+          );
+          setCsvError(null);
+          setRefreshTrigger((prev) => prev + 1);
+        }
+
+        localStorage.setItem(migrationStateKey, 'done');
+      } catch (error) {
+        console.error('Failed to migrate local data:', error);
+        localStorage.removeItem(migrationStateKey);
+
+        if (isActive) {
+          setCsvError('Failed to migrate local bookmarks. You can keep using your existing account data and retry later.');
         }
       }
-    } catch (error) {
-      console.error('Failed to load custom categories:', error);
-    }
-  }, []);
+    };
 
-  const persistCustomCategories = (categories: string[]) => {
-    const unique = Array.from(new Set(categories));
+    void migrateLegacyData();
+
+    return () => {
+      isActive = false;
+    };
+  }, [userId]);
+
+  const persistCustomCategories = async (categories: string[]) => {
+    const unique = Array.from(new Set(categories.map((category) => category.trim()).filter(Boolean)));
     setCustomCategories(unique);
+
     try {
-      localStorage.setItem(CUSTOM_CATEGORIES_KEY, JSON.stringify(unique));
+      await saveCustomCategories(unique);
     } catch (error) {
       console.error('Failed to save custom categories:', error);
+      setCsvError('Failed to save custom categories. Please try again.');
     }
   };
 
   const handleAddBookmark = () => {
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   const categories = useMemo(() => {
-    const set = new Set<string>(customCategories);
-    bookmarks.forEach(b => {
-      b.categories?.forEach((cat) => set.add(cat));
+    const categorySet = new Set<string>(customCategories);
+    bookmarks.forEach((bookmark) => {
+      bookmark.categories?.forEach((category) => categorySet.add(category));
     });
-    return Array.from(set);
+    return Array.from(categorySet);
   }, [bookmarks, customCategories]);
 
   useEffect(() => {
     setSelectedCategories((prev) => {
-      const next = prev.filter((cat) => categories.includes(cat));
+      const next = prev.filter((category) => categories.includes(category));
       return next.length === prev.length ? prev : next;
     });
   }, [categories]);
 
-  const handleAddCategory = () => {
+  const handleAddCategory = async () => {
     const name = window.prompt('Enter a new category name:');
-    if (name === null) return;
+    if (name === null) {
+      return;
+    }
+
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed) {
+      return;
+    }
 
     const normalized = trimmed.toLowerCase();
-    const existing = categories.find((cat) => cat.toLowerCase() === normalized);
+    const existing = categories.find((category) => category.toLowerCase() === normalized);
     if (existing) {
       setSelectedCategories((prev) => (prev.includes(existing) ? prev : [...prev, existing]));
       return;
     }
 
     const updated = [...customCategories, trimmed];
-    persistCustomCategories(updated);
+    await persistCustomCategories(updated);
     setSelectedCategories((prev) => [...prev, trimmed]);
   };
 
-  const handleDeleteCategory = (category: string) => {
+  const handleDeleteCategory = async (category: string) => {
     if (
       !window.confirm(
         `Delete the "${category}" category from all bookmarks? This cannot be undone.`
@@ -121,27 +251,30 @@ export default function App() {
       return;
     }
 
-    const updatedCustomCategories = customCategories.filter((cat) => cat !== category);
+    const updatedCustomCategories = customCategories.filter((item) => item !== category);
     if (updatedCustomCategories.length !== customCategories.length) {
-      persistCustomCategories(updatedCustomCategories);
+      await persistCustomCategories(updatedCustomCategories);
     }
 
-    const updatedBookmarks = removeCategoryFromBookmarks(category);
-    setBookmarks(updatedBookmarks);
-    setSelectedCategories((prev) => prev.filter((cat) => cat !== category));
-    setRefreshTrigger((prev) => prev + 1);
+    try {
+      const updatedBookmarks = await removeCategoryFromBookmarks(category);
+      setBookmarks(updatedBookmarks);
+      setSelectedCategories((prev) => prev.filter((item) => item !== category));
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (error) {
+      console.error('Failed to delete category from bookmarks:', error);
+      setCsvError('Failed to delete category from bookmarks. Please try again.');
+    }
   };
 
   const handleImageClick = (index: number, items: ImageBookmark[]) => {
     setLightboxBookmarks(items);
     setLightboxIndex(index);
-    // Disable body scroll when lightbox is open
     document.body.style.overflow = 'hidden';
   };
 
   const handleCloseLightbox = () => {
     setLightboxIndex(null);
-    // Re-enable body scroll
     document.body.style.overflow = 'auto';
   };
 
@@ -157,16 +290,26 @@ export default function App() {
     }
   };
 
-  const handleShuffle = () => {
-    const shuffled = shuffleBookmarks();
-    setBookmarks(shuffled);
-    setRefreshTrigger(prev => prev + 1);
+  const handleShuffle = async () => {
+    try {
+      const shuffled = await shuffleBookmarks();
+      setBookmarks(shuffled);
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (error) {
+      console.error('Failed to shuffle bookmarks:', error);
+      setCsvError('Failed to shuffle bookmarks. Please try again.');
+    }
   };
 
-  const handleReorder = () => {
-    const ordered = reorderBookmarks();
-    setBookmarks(ordered);
-    setRefreshTrigger(prev => prev + 1);
+  const handleReorder = async () => {
+    try {
+      const ordered = await reorderBookmarks();
+      setBookmarks(ordered);
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (error) {
+      console.error('Failed to reorder bookmarks:', error);
+      setCsvError('Failed to reorder bookmarks. Please try again.');
+    }
   };
 
   const handleDownloadCsv = () => {
@@ -189,7 +332,9 @@ export default function App() {
 
   const handleCsvUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     try {
       const text = await file.text();
@@ -218,8 +363,8 @@ export default function App() {
         return;
       }
 
-      const { added, skipped } = addBookmarksFromImport(validEntries);
-      setRefreshTrigger(prev => prev + 1);
+      const { added, skipped } = await addBookmarksFromImport(validEntries);
+      setRefreshTrigger((prev) => prev + 1);
       setCsvStatus(
         `Imported ${added} ${added === 1 ? 'bookmark' : 'bookmarks'}${skipped ? `, skipped ${skipped}` : ''}${
           invalidCount ? `, ignored ${invalidCount} invalid URL${invalidCount === 1 ? '' : 's'}` : ''
@@ -234,9 +379,21 @@ export default function App() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500" />
+      </div>
+    );
+  }
+
+  if (!isConfigured || !user) {
+    return <AuthScreen />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-      <Header />
+      <Header userEmail={user.email} onSignOut={signOut} />
       <main className="py-8">
         {showInputBar ? (
           <InputBar
@@ -308,8 +465,10 @@ export default function App() {
                 );
               }}
               onClear={() => setSelectedCategories([])}
-              onAddCategory={handleAddCategory}
-              onDeleteCategory={handleDeleteCategory}
+              onAddCategory={() => void handleAddCategory()}
+              onDeleteCategory={(category) => {
+                void handleDeleteCategory(category);
+              }}
             />
             <div className="w-full max-w-4xl mx-auto p-4 flex flex-wrap gap-4">
               <button
@@ -321,21 +480,21 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={handleShuffle}
+                onClick={() => void handleShuffle()}
                 className="px-4 py-2 rounded-md text-white font-medium bg-purple-600 hover:bg-purple-700 transition-colors"
               >
                 Shuffle Images
               </button>
               <button
                 type="button"
-                onClick={handleReorder}
+                onClick={() => void handleReorder()}
                 className="px-4 py-2 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
               >
                 Reorder Images
               </button>
               <button
                 type="button"
-                onClick={() => setShowDuplicatesOnly(prev => !prev)}
+                onClick={() => setShowDuplicatesOnly((prev) => !prev)}
                 className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${
                   showDuplicatesOnly
                     ? 'bg-amber-600 hover:bg-amber-700'
@@ -346,7 +505,7 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={() => setShowUntitledOnly(prev => !prev)}
+                onClick={() => setShowUntitledOnly((prev) => !prev)}
                 className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${
                   showUntitledOnly
                     ? 'bg-slate-700 hover:bg-slate-800'
