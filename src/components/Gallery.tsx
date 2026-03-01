@@ -9,10 +9,11 @@ import {
   normalizeBookmarkUrl,
   removeBookmark,
   removeBookmarks,
+  updateBookmark,
   updateBookmarksBulk,
 } from '../lib/storage';
 import { formatDate, isValidImageUrl, isVideoBookmark } from '../utils/validation';
-import { searchImages } from '../utils/search';
+import { buildSearchTokens, searchImages } from '../utils/search';
 import BulkEditModal from './BulkEditModal';
 import EditBookmarkModal from './EditBookmarkModal';
 
@@ -114,6 +115,7 @@ export default function Gallery({
   const lastSelectedIndexRef = useRef<number | null>(null);
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const previousPageRef = useRef<number | null>(null);
+  const hasLoadedOnceRef = useRef(false);
   const [goToPageValue, setGoToPageValue] = useState('');
   const [isEditingGoToPage, setIsEditingGoToPage] = useState(false);
 
@@ -151,7 +153,10 @@ export default function Gallery({
 
   useEffect(() => {
     let isActive = true;
-    setIsLoading(true);
+
+    if (!hasLoadedOnceRef.current) {
+      setIsLoading(true);
+    }
 
     const load = async () => {
       try {
@@ -163,6 +168,7 @@ export default function Gallery({
         console.error('Failed to load bookmarks:', error);
       } finally {
         if (isActive) {
+          hasLoadedOnceRef.current = true;
           setIsLoading(false);
         }
       }
@@ -216,12 +222,15 @@ export default function Gallery({
   const handleRemove = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to remove this bookmark?')) {
+      const previousBookmarks = bookmarks;
+      setBookmarks((prev) => prev.filter((bookmark) => bookmark.id !== id));
+
       try {
         await removeBookmark(id);
-        setBookmarks((prev) => prev.filter((bookmark) => bookmark.id !== id));
         onAddBookmark();
       } catch (error) {
         console.error('Failed to remove bookmark:', error);
+        setBookmarks(previousBookmarks);
       }
     }
   };
@@ -261,14 +270,17 @@ export default function Gallery({
         }?`
       )
     ) {
+      const previousBookmarks = bookmarks;
+      setBookmarks((prev) => prev.filter((bookmark) => !selectedIds.includes(bookmark.id)));
+      setSelectedIds([]);
+      setSelectMode(false);
+
       try {
         await removeBookmarks(selectedIds);
-        setBookmarks((prev) => prev.filter((bookmark) => !selectedIds.includes(bookmark.id)));
-        setSelectedIds([]);
-        setSelectMode(false);
         onAddBookmark();
       } catch (error) {
         console.error('Failed to remove selected bookmarks:', error);
+        setBookmarks(previousBookmarks);
       }
     }
   };
@@ -279,15 +291,43 @@ export default function Gallery({
     if (selectedIds.length === 0) return;
     if (!('title' in updates) && !('categories' in updates)) return;
 
+    const selectedIdSet = new Set(selectedIds);
+    const previousBookmarks = bookmarks;
+    const optimisticBookmarks = bookmarks.map((bookmark) => {
+      if (!selectedIdSet.has(bookmark.id)) {
+        return bookmark;
+      }
+
+      const nextCategories = 'categories' in updates
+        ? updates.categories?.map((category) => category.trim()).filter(Boolean)
+        : bookmark.categories;
+      const nextTitle = 'title' in updates
+        ? (updates.title?.trim() || undefined)
+        : bookmark.title;
+
+      const nextBookmark: ImageBookmark = {
+        ...bookmark,
+        ...updates,
+        title: nextTitle,
+        categories: nextCategories && nextCategories.length > 0 ? nextCategories : undefined,
+      };
+
+      nextBookmark.searchTokens = buildSearchTokens(nextBookmark);
+      return nextBookmark;
+    });
+
+    setBookmarks(optimisticBookmarks);
+    setSelectedIds([]);
+    setSelectMode(false);
+    setBulkEditing(false);
+
     try {
       const updatedBookmarks = await updateBookmarksBulk(selectedIds, updates);
       setBookmarks(updatedBookmarks);
-      setSelectedIds([]);
-      setSelectMode(false);
-      setBulkEditing(false);
       onAddBookmark();
     } catch (error) {
       console.error('Failed to bulk update bookmarks:', error);
+      setBookmarks(previousBookmarks);
     }
   };
 
@@ -1063,12 +1103,46 @@ export default function Gallery({
           bookmark={editingBookmark}
           allCategories={allCategories}
           onClose={() => setEditingBookmark(null)}
-          onSave={(updated) => {
-            setBookmarks(prev =>
-              prev.map(b => (b.id === updated.id ? updated : b))
+          onSave={async (updates) => {
+            const previousBookmarks = bookmarks;
+            const nextEditingBookmark = editingBookmark;
+
+            if (!nextEditingBookmark) {
+              return;
+            }
+
+            const optimisticBookmark: ImageBookmark = {
+              ...nextEditingBookmark,
+              ...updates,
+              title: 'title' in updates ? updates.title?.trim() || undefined : nextEditingBookmark.title,
+              categories:
+                'categories' in updates
+                  ? updates.categories?.map((category) => category.trim()).filter(Boolean) || undefined
+                  : nextEditingBookmark.categories,
+            };
+            optimisticBookmark.searchTokens = buildSearchTokens(optimisticBookmark);
+
+            setBookmarks((prev) =>
+              prev.map((bookmark) => (bookmark.id === optimisticBookmark.id ? optimisticBookmark : bookmark))
             );
             setEditingBookmark(null);
-            onAddBookmark();
+
+            try {
+              const persisted = await updateBookmark(nextEditingBookmark.id, updates);
+              if (!persisted) {
+                throw new Error('Bookmark not found.');
+              }
+
+              setBookmarks((prev) =>
+                prev.map((bookmark) => (bookmark.id === persisted.id ? persisted : bookmark))
+              );
+              onAddBookmark();
+            } catch (error) {
+              console.error('Failed to update bookmark:', error);
+              setBookmarks(previousBookmarks);
+              setEditingBookmark(nextEditingBookmark);
+              throw error;
+            }
           }}
         />
       )}

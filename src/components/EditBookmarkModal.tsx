@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import type { ImageBookmark } from '../types';
-import { updateBookmark } from '../lib/storage';
 import { isVideoBookmark } from '../utils/validation';
 
 interface EditBookmarkModalProps {
   bookmark: ImageBookmark;
   allCategories: string[];
   onClose: () => void;
-  onSave: (bookmark: ImageBookmark) => void;
+  onSave: (
+    updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>
+  ) => Promise<void>;
 }
 
 export default function EditBookmarkModal({ bookmark, allCategories, onClose, onSave }: EditBookmarkModalProps) {
@@ -38,14 +39,10 @@ export default function EditBookmarkModal({ bookmark, allCategories, onClose, on
 
     try {
       const trimmedTitle = title.trim();
-      const updated = await updateBookmark(bookmark.id, {
+      await onSave({
         title: trimmedTitle || undefined,
         categories: categories.length > 0 ? categories : undefined,
       });
-
-      if (updated) {
-        onSave(updated);
-      }
     } catch (saveError) {
       console.error('Failed to update bookmark:', saveError);
       setError('Failed to update bookmark. Please try again.');
