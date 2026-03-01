@@ -306,22 +306,28 @@ async function updateRows(rows: Array<Partial<BookmarkRow> & { id: string; user_
     return;
   }
 
-  const results = await Promise.all(
-    rows.map(async (row) => {
-      const { id, user_id: userId, ...patch } = row;
-      const { error } = await supabase
-        .from('bookmarks')
-        .update(patch)
-        .eq('id', id)
-        .eq('user_id', userId);
+  const CHUNK_SIZE = 100;
 
-      return error;
-    })
-  );
+  for (let index = 0; index < rows.length; index += CHUNK_SIZE) {
+    const chunk = rows.slice(index, index + CHUNK_SIZE);
 
-  const failed = results.find((result) => result !== null);
-  if (failed) {
-    throw failed;
+    const results = await Promise.all(
+      chunk.map(async (row) => {
+        const { id, user_id: userId, ...patch } = row;
+        const { error } = await supabase
+          .from('bookmarks')
+          .update(patch)
+          .eq('id', id)
+          .eq('user_id', userId);
+
+        return error;
+      })
+    );
+
+    const failed = results.find((result) => result !== null);
+    if (failed) {
+      throw failed;
+    }
   }
 }
 
