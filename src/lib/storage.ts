@@ -5,7 +5,7 @@ import { isSupabaseConfigured, supabase } from './supabase';
 
 const STORAGE_KEY = 'imageBookmarks:v1';
 const CUSTOM_CATEGORIES_KEY = 'imageBookmarks:customCategories:v1';
-const SHUFFLE_BACKUP_KEY = 'imageBookmarks:shuffleBackup:v1';
+const VIEW_ORDER_KEY_PREFIX = 'imageBookmarks:viewOrder:v1:';
 
 export const LEGACY_BOOKMARKS_STORAGE_KEY = STORAGE_KEY;
 export const LEGACY_CUSTOM_CATEGORIES_STORAGE_KEY = CUSTOM_CATEGORIES_KEY;
@@ -42,8 +42,6 @@ type CustomCategoryRow = {
 
 type BookmarkCreateInput = Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>;
 type BookmarkUpdateInput = Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>;
-
-type ShuffleBackup = Record<string, number>;
 
 function assertSupabaseConfigured(): void {
   if (!isSupabaseConfigured) {
@@ -194,43 +192,104 @@ function parseLegacyBookmarks(): ImageBookmark[] {
   }
 }
 
-function saveShuffleBackup(bookmarks: ImageBookmark[]): void {
-  try {
-    const backup: ShuffleBackup = {};
-    bookmarks.forEach((bookmark) => {
-      backup[bookmark.id] = bookmark.createdAt;
-    });
-    localStorage.setItem(SHUFFLE_BACKUP_KEY, JSON.stringify(backup));
-  } catch (error) {
-    console.error('Failed to save shuffle backup:', error);
-  }
+function getViewOrderStorageKey(userId: string): string {
+  return `${VIEW_ORDER_KEY_PREFIX}${userId}`;
 }
 
-function loadShuffleBackup(): ShuffleBackup | null {
+function loadViewOrder(userId: string): string[] {
   try {
-    const raw = localStorage.getItem(SHUFFLE_BACKUP_KEY);
+    const raw = localStorage.getItem(getViewOrderStorageKey(userId));
     if (!raw) {
-      return null;
+      return [];
     }
 
-    const parsed = JSON.parse(raw) as ShuffleBackup;
-    if (!parsed || typeof parsed !== 'object') {
-      return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
     }
 
-    return parsed;
+    return parsed.filter((entry): entry is string => typeof entry === 'string');
   } catch (error) {
-    console.error('Failed to parse shuffle backup:', error);
-    return null;
+    console.error('Failed to load bookmark view order:', error);
+    return [];
   }
 }
 
-function clearShuffleBackup(): void {
+function saveViewOrder(userId: string, ids: string[]): void {
   try {
-    localStorage.removeItem(SHUFFLE_BACKUP_KEY);
+    localStorage.setItem(getViewOrderStorageKey(userId), JSON.stringify(ids));
   } catch (error) {
-    console.error('Failed to clear shuffle backup:', error);
+    console.error('Failed to save bookmark view order:', error);
   }
+}
+
+function clearViewOrder(userId: string): void {
+  try {
+    localStorage.removeItem(getViewOrderStorageKey(userId));
+  } catch (error) {
+    console.error('Failed to clear bookmark view order:', error);
+  }
+}
+
+export async function saveCurrentViewOrder(ids: string[]): Promise<void> {
+  const userId = await requireAuthenticatedUserId();
+  saveViewOrder(userId, ids);
+}
+
+export async function clearCurrentViewOrder(): Promise<void> {
+  const userId = await requireAuthenticatedUserId();
+  clearViewOrder(userId);
+}
+
+function removeIdsFromViewOrder(userId: string, idsToRemove: string[]): void {
+  const existingOrder = loadViewOrder(userId);
+  if (existingOrder.length === 0) {
+    return;
+  }
+
+  const removeSet = new Set(idsToRemove);
+  const nextOrder = existingOrder.filter((id) => !removeSet.has(id));
+  if (nextOrder.length !== existingOrder.length) {
+    saveViewOrder(userId, nextOrder);
+  }
+}
+
+function applyViewOrder(userId: string, bookmarks: ImageBookmark[]): ImageBookmark[] {
+  const order = loadViewOrder(userId);
+  if (order.length === 0 || bookmarks.length === 0) {
+    return bookmarks;
+  }
+
+  const existingIds = new Set(bookmarks.map((bookmark) => bookmark.id));
+  const filteredOrder = order.filter((id) => existingIds.has(id));
+
+  if (filteredOrder.length !== order.length) {
+    saveViewOrder(userId, filteredOrder);
+  }
+
+  if (filteredOrder.length === 0) {
+    return bookmarks;
+  }
+
+  const orderIndex = new Map(filteredOrder.map((id, index) => [id, index]));
+  return [...bookmarks].sort((left, right) => {
+    const leftIndex = orderIndex.get(left.id);
+    const rightIndex = orderIndex.get(right.id);
+
+    if (leftIndex === undefined && rightIndex === undefined) {
+      return right.createdAt - left.createdAt;
+    }
+
+    if (leftIndex === undefined) {
+      return 1;
+    }
+
+    if (rightIndex === undefined) {
+      return -1;
+    }
+
+    return leftIndex - rightIndex;
+  });
 }
 
 async function fetchBookmarksForUser(userId: string): Promise<BookmarkRow[]> {
@@ -238,7 +297,6 @@ async function fetchBookmarksForUser(userId: string): Promise<BookmarkRow[]> {
   const rows: BookmarkRow[] = [];
   let from = 0;
 
-  // Supabase/PostgREST defaults to a max row limit per select, so fetch in pages.
   while (true) {
     const to = from + PAGE_SIZE - 1;
     const { data, error } = await supabase
@@ -369,7 +427,7 @@ export async function loadBookmarks(): Promise<ImageBookmark[]> {
     }
   }
 
-  return bookmarks;
+  return applyViewOrder(userId, bookmarks);
 }
 
 export async function isDuplicateUrl(url: string): Promise<boolean> {
@@ -379,6 +437,7 @@ export async function isDuplicateUrl(url: string): Promise<boolean> {
 }
 
 export async function moveBookmarkToFrontByUrl(url: string): Promise<ImageBookmark[] | null> {
+  const userId = await requireAuthenticatedUserId();
   const normalized = normalizeBookmarkUrl(url);
   const bookmarks = await loadBookmarks();
   const match = bookmarks.find((bookmark) => normalizeBookmarkUrl(bookmark.url) === normalized);
@@ -387,18 +446,9 @@ export async function moveBookmarkToFrontByUrl(url: string): Promise<ImageBookma
     return null;
   }
 
-  const userId = await requireAuthenticatedUserId();
-  const { error } = await supabase
-    .from('bookmarks')
-    .update({ created_at: toIsoDate(Date.now() + 1) })
-    .eq('id', match.id)
-    .eq('user_id', userId);
-
-  if (error) {
-    throw error;
-  }
-
-  return loadBookmarks();
+  const reordered = [match, ...bookmarks.filter((bookmark) => bookmark.id !== match.id)];
+  saveViewOrder(userId, reordered.map((bookmark) => bookmark.id));
+  return reordered;
 }
 
 export async function addBookmark(bookmark: BookmarkCreateInput): Promise<ImageBookmark> {
@@ -427,7 +477,14 @@ export async function addBookmark(bookmark: BookmarkCreateInput): Promise<ImageB
     throw error;
   }
 
-  return rowToBookmark(data as BookmarkRow);
+  const inserted = rowToBookmark(data as BookmarkRow);
+
+  const existingOrder = loadViewOrder(userId);
+  if (existingOrder.length > 0) {
+    saveViewOrder(userId, [inserted.id, ...existingOrder.filter((id) => id !== inserted.id)]);
+  }
+
+  return inserted;
 }
 
 export async function addBookmarksFromImport(entries: BookmarkImport[]): Promise<{
@@ -454,7 +511,7 @@ export async function addBookmarksFromImport(entries: BookmarkImport[]): Promise
 
     const categories = normalizeCategoryList(entry.categories);
 
-    const bookmark: ImageBookmark = {
+    const nextBookmark: ImageBookmark = {
       id: crypto.randomUUID(),
       url: trimmedUrl,
       title: normalizeOptionalText(entry.title),
@@ -465,9 +522,9 @@ export async function addBookmarksFromImport(entries: BookmarkImport[]): Promise
       createdAt: entry.createdAt ?? Date.now() + index,
     };
 
-    bookmark.searchTokens = buildSearchTokens(bookmark);
+    nextBookmark.searchTokens = buildSearchTokens(nextBookmark);
 
-    rowsToInsert.push(toUpsertRow(bookmark, userId, bookmark.createdAt));
+    rowsToInsert.push(toUpsertRow(nextBookmark, userId, nextBookmark.createdAt));
     normalizedUrls.add(normalizedUrl);
   });
 
@@ -478,6 +535,19 @@ export async function addBookmarksFromImport(entries: BookmarkImport[]): Promise
   const { error } = await supabase.from('bookmarks').insert(rowsToInsert);
   if (error) {
     throw error;
+  }
+
+  const existingOrder = loadViewOrder(userId);
+  if (existingOrder.length > 0) {
+    const insertedIds = [...rowsToInsert]
+      .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
+      .map((row) => row.id);
+    const existingSet = new Set(insertedIds);
+
+    saveViewOrder(
+      userId,
+      [...insertedIds, ...existingOrder.filter((id) => !existingSet.has(id))]
+    );
   }
 
   return { added: rowsToInsert.length, skipped };
@@ -505,10 +575,8 @@ export async function updateBookmark(
   }
 
   const current = rowToBookmark(data as BookmarkRow);
-  const categories =
-    'categories' in updates
-      ? normalizeCategoryList(updates.categories)
-      : current.categories;
+  const updatedCategories =
+    'categories' in updates ? normalizeCategoryList(updates.categories) : undefined;
 
   const nextBookmark: ImageBookmark = {
     ...current,
@@ -521,8 +589,8 @@ export async function updateBookmark(
     mimeType: 'mimeType' in updates ? normalizeOptionalText(updates.mimeType) : current.mimeType,
     categories:
       'categories' in updates
-        ? categories && categories.length > 0
-          ? categories
+        ? updatedCategories && updatedCategories.length > 0
+          ? updatedCategories
           : undefined
         : current.categories,
   };
@@ -623,6 +691,8 @@ export async function removeBookmark(id: string): Promise<void> {
   if (error) {
     throw error;
   }
+
+  removeIdsFromViewOrder(userId, [id]);
 }
 
 export async function removeBookmarks(ids: string[]): Promise<void> {
@@ -640,13 +710,13 @@ export async function removeBookmarks(ids: string[]): Promise<void> {
   if (error) {
     throw error;
   }
+
+  removeIdsFromViewOrder(userId, ids);
 }
 
 export async function shuffleBookmarks(): Promise<ImageBookmark[]> {
   const userId = await requireAuthenticatedUserId();
   const bookmarks = await loadBookmarks();
-
-  saveShuffleBackup(bookmarks);
 
   const shuffled = [...bookmarks];
   for (let index = shuffled.length - 1; index > 0; index -= 1) {
@@ -654,39 +724,13 @@ export async function shuffleBookmarks(): Promise<ImageBookmark[]> {
     [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
   }
 
-  const base = Date.now() + shuffled.length + 1;
-  const updates = shuffled.map((bookmark, index) => ({
-    id: bookmark.id,
-    user_id: userId,
-    created_at: toIsoDate(base - index),
-  }));
-
-  await updateRows(updates);
-  return loadBookmarks();
+  saveViewOrder(userId, shuffled.map((bookmark) => bookmark.id));
+  return shuffled;
 }
 
 export async function reorderBookmarks(): Promise<ImageBookmark[]> {
   const userId = await requireAuthenticatedUserId();
-  const backup = loadShuffleBackup();
-
-  if (!backup) {
-    return loadBookmarks();
-  }
-
-  const ids = Object.keys(backup);
-  if (ids.length === 0) {
-    clearShuffleBackup();
-    return loadBookmarks();
-  }
-
-  const updates = ids.map((id) => ({
-    id,
-    user_id: userId,
-    created_at: toIsoDate(backup[id]),
-  }));
-
-  await updateRows(updates);
-  clearShuffleBackup();
+  clearViewOrder(userId);
   return loadBookmarks();
 }
 

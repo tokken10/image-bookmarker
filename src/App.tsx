@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ImageBookmark } from './types';
 import {
   addBookmarksFromImport,
+  clearCurrentViewOrder,
   clearLegacyCustomCategories,
   clearLegacyLocalBookmarks,
   loadBookmarks,
@@ -9,9 +10,8 @@ import {
   loadLegacyCustomCategories,
   loadLegacyLocalBookmarks,
   removeCategoryFromBookmarks,
-  reorderBookmarks,
+  saveCurrentViewOrder,
   saveCustomCategories,
-  shuffleBookmarks,
 } from './lib/storage';
 import { buildBookmarksCsv, parseBookmarksCsv } from './utils/csv';
 import { useAuth } from './auth/useAuth';
@@ -30,6 +30,7 @@ export default function App() {
   const { user, loading: authLoading, signOut, isConfigured } = useAuth();
   const userId = user?.id ?? null;
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
+  const [bookmarksLoading, setBookmarksLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [lightboxBookmarks, setLightboxBookmarks] = useState<ImageBookmark[]>([]);
@@ -43,6 +44,7 @@ export default function App() {
   const [csvStatus, setCsvStatus] = useState<string | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const hasLoadedBookmarksRef = useRef(false);
 
   useEffect(() => {
     if (!userId) {
@@ -51,6 +53,9 @@ export default function App() {
     }
 
     let isActive = true;
+    if (!hasLoadedBookmarksRef.current) {
+      setBookmarksLoading(true);
+    }
 
     const load = async () => {
       try {
@@ -60,6 +65,11 @@ export default function App() {
         }
       } catch (error) {
         console.error('Error loading bookmarks:', error);
+      } finally {
+        if (isActive) {
+          hasLoadedBookmarksRef.current = true;
+          setBookmarksLoading(false);
+        }
       }
     };
 
@@ -204,6 +214,28 @@ export default function App() {
     setRefreshTrigger((prev) => prev + 1);
   };
 
+  const handleOptimisticBookmarkAdd = (bookmark: ImageBookmark) => {
+    setBookmarks((prev) => [bookmark, ...prev.filter((item) => item.id !== bookmark.id)]);
+  };
+
+  const handleOptimisticBookmarkResolve = (
+    temporaryId: string,
+    bookmark: ImageBookmark
+  ) => {
+    setBookmarks((prev) => [
+      bookmark,
+      ...prev.filter((item) => item.id !== temporaryId && item.id !== bookmark.id),
+    ]);
+  };
+
+  const handleOptimisticBookmarkRemove = (temporaryId: string) => {
+    setBookmarks((prev) => prev.filter((item) => item.id !== temporaryId));
+  };
+
+  const handleBookmarksReordered = (nextBookmarks: ImageBookmark[]) => {
+    setBookmarks(nextBookmarks);
+  };
+
   const categories = useMemo(() => {
     const categorySet = new Set<string>(customCategories);
     bookmarks.forEach((bookmark) => {
@@ -290,26 +322,38 @@ export default function App() {
     }
   };
 
-  const handleShuffle = async () => {
-    try {
-      const shuffled = await shuffleBookmarks();
-      setBookmarks(shuffled);
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (error) {
-      console.error('Failed to shuffle bookmarks:', error);
-      setCsvError('Failed to shuffle bookmarks. Please try again.');
-    }
+  const handleShuffle = () => {
+    setCsvError(null);
+    setCsvStatus(null);
+    setBookmarks((previous) => {
+      const shuffled = [...previous];
+      for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[randomIndex]] = [shuffled[randomIndex], shuffled[index]];
+      }
+
+      void saveCurrentViewOrder(shuffled.map((bookmark) => bookmark.id)).catch((error) => {
+        console.error('Failed to save shuffled order:', error);
+        const message = error instanceof Error ? error.message : String(error);
+        setCsvError(`Failed to save shuffled order. ${message || 'Please try again.'}`);
+      });
+
+      return shuffled;
+    });
   };
 
-  const handleReorder = async () => {
-    try {
-      const ordered = await reorderBookmarks();
-      setBookmarks(ordered);
-      setRefreshTrigger((prev) => prev + 1);
-    } catch (error) {
-      console.error('Failed to reorder bookmarks:', error);
-      setCsvError('Failed to reorder bookmarks. Please try again.');
-    }
+  const handleReorder = () => {
+    setCsvError(null);
+    setCsvStatus(null);
+    setBookmarks((previous) => {
+      const ordered = [...previous].sort((left, right) => right.createdAt - left.createdAt);
+      void clearCurrentViewOrder().catch((error) => {
+        console.error('Failed to clear custom order:', error);
+        const message = error instanceof Error ? error.message : String(error);
+        setCsvError(`Failed to clear custom order. ${message || 'Please try again.'}`);
+      });
+      return ordered;
+    });
   };
 
   const handleDownloadCsv = () => {
@@ -366,8 +410,7 @@ export default function App() {
       const { added, skipped } = await addBookmarksFromImport(validEntries);
       setRefreshTrigger((prev) => prev + 1);
       setCsvStatus(
-        `Imported ${added} ${added === 1 ? 'bookmark' : 'bookmarks'}${skipped ? `, skipped ${skipped}` : ''}${
-          invalidCount ? `, ignored ${invalidCount} invalid URL${invalidCount === 1 ? '' : 's'}` : ''
+        `Imported ${added} ${added === 1 ? 'bookmark' : 'bookmarks'}${skipped ? `, skipped ${skipped}` : ''}${invalidCount ? `, ignored ${invalidCount} invalid URL${invalidCount === 1 ? '' : 's'}` : ''
         }.`
       );
       setCsvError(null);
@@ -397,7 +440,11 @@ export default function App() {
       <main className="py-8">
         {showInputBar ? (
           <InputBar
-            onAddBookmark={handleAddBookmark}
+            onOptimisticBookmarkAdd={handleOptimisticBookmarkAdd}
+            onOptimisticBookmarkResolve={handleOptimisticBookmarkResolve}
+            onOptimisticBookmarkRemove={handleOptimisticBookmarkRemove}
+            onBookmarksReordered={handleBookmarksReordered}
+            currentBookmarks={bookmarks}
             selectedCategories={selectedCategories}
             onClose={() => setShowInputBar(false)}
           />
@@ -417,11 +464,10 @@ export default function App() {
             type="button"
             onClick={handleDownloadCsv}
             disabled={bookmarks.length === 0}
-            className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${
-              bookmarks.length === 0
+            className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${bookmarks.length === 0
                 ? 'bg-emerald-300 cursor-not-allowed'
                 : 'bg-emerald-600 hover:bg-emerald-700'
-            }`}
+              }`}
           >
             Download CSV
           </button>
@@ -480,14 +526,14 @@ export default function App() {
               </button>
               <button
                 type="button"
-                onClick={() => void handleShuffle()}
+                onClick={handleShuffle}
                 className="px-4 py-2 rounded-md text-white font-medium bg-purple-600 hover:bg-purple-700 transition-colors"
               >
                 Shuffle Images
               </button>
               <button
                 type="button"
-                onClick={() => void handleReorder()}
+                onClick={handleReorder}
                 className="px-4 py-2 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
               >
                 Reorder Images
@@ -495,22 +541,20 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setShowDuplicatesOnly((prev) => !prev)}
-                className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${
-                  showDuplicatesOnly
+                className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${showDuplicatesOnly
                     ? 'bg-amber-600 hover:bg-amber-700'
                     : 'bg-amber-500 hover:bg-amber-600'
-                }`}
+                  }`}
               >
                 {showDuplicatesOnly ? 'Show All Images' : 'Show Duplicates'}
               </button>
               <button
                 type="button"
                 onClick={() => setShowUntitledOnly((prev) => !prev)}
-                className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${
-                  showUntitledOnly
+                className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${showUntitledOnly
                     ? 'bg-slate-700 hover:bg-slate-800'
                     : 'bg-slate-500 hover:bg-slate-600'
-                }`}
+                  }`}
               >
                 {showUntitledOnly ? 'Show All' : 'Show Untitled'}
               </button>
@@ -527,8 +571,9 @@ export default function App() {
           </>
         )}
         <Gallery
+          bookmarksFromApp={bookmarks}
+          loadingFromApp={bookmarksLoading}
           onImageClick={handleImageClick}
-          refreshTrigger={refreshTrigger}
           onAddBookmark={handleAddBookmark}
           selectedCategories={selectedCategories}
           selectMode={selectMode}

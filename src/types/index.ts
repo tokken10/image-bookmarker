@@ -1,5 +1,9 @@
 export type ImageBookmark = {
   id: string;
+  /**
+   * Client-only flag used for optimistic UI while a bookmark is being persisted.
+   */
+  isPending?: boolean;
   url: string;
   /**
    * MIME type associated with the stored media, when known.

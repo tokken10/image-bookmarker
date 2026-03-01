@@ -3,8 +3,6 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { ImageBookmark } from '../types';
 import {
   addBookmark,
-  isDuplicateUrl,
-  loadBookmarks,
   moveBookmarkToFrontByUrl,
   normalizeBookmarkUrl,
   removeBookmark,
@@ -71,8 +69,9 @@ const DEFAULT_ITEMS_PER_PAGE: ItemsPerPageOption = 24;
 const ITEMS_PER_PAGE_STORAGE_KEY = 'imageBookmarks:itemsPerPage:v1';
 
 interface GalleryProps {
+  bookmarksFromApp: ImageBookmark[];
+  loadingFromApp: boolean;
   onImageClick: (index: number, items: ImageBookmark[]) => void;
-  refreshTrigger: number;
   onAddBookmark: () => void;
   selectedCategories: string[];
   selectMode: boolean;
@@ -84,8 +83,9 @@ interface GalleryProps {
 }
 
 export default function Gallery({
+  bookmarksFromApp,
+  loadingFromApp,
   onImageClick,
-  refreshTrigger,
   onAddBookmark,
   selectedCategories,
   selectMode,
@@ -115,7 +115,6 @@ export default function Gallery({
   const lastSelectedIndexRef = useRef<number | null>(null);
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const previousPageRef = useRef<number | null>(null);
-  const hasLoadedOnceRef = useRef(false);
   const [goToPageValue, setGoToPageValue] = useState('');
   const [isEditingGoToPage, setIsEditingGoToPage] = useState(false);
 
@@ -152,34 +151,12 @@ export default function Gallery({
   }, [search]);
 
   useEffect(() => {
-    let isActive = true;
+    setBookmarks(bookmarksFromApp);
+  }, [bookmarksFromApp]);
 
-    if (!hasLoadedOnceRef.current) {
-      setIsLoading(true);
-    }
-
-    const load = async () => {
-      try {
-        const savedBookmarks = await loadBookmarks();
-        if (isActive) {
-          setBookmarks(savedBookmarks);
-        }
-      } catch (error) {
-        console.error('Failed to load bookmarks:', error);
-      } finally {
-        if (isActive) {
-          hasLoadedOnceRef.current = true;
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void load();
-
-    return () => {
-      isActive = false;
-    };
-  }, [refreshTrigger]);
+  useEffect(() => {
+    setIsLoading(loadingFromApp);
+  }, [loadingFromApp]);
 
   useEffect(() => {
     try {
@@ -265,8 +242,7 @@ export default function Gallery({
     if (selectedIds.length === 0) return;
     if (
       window.confirm(
-        `Delete ${selectedIds.length} selected image${
-          selectedIds.length === 1 ? '' : 's'
+        `Delete ${selectedIds.length} selected image${selectedIds.length === 1 ? '' : 's'
         }?`
       )
     ) {
@@ -353,27 +329,63 @@ export default function Gallery({
     setDropError(null);
 
     const droppedUrl = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
-    const newItems: ImageBookmark[] = [];
     const errors: string[] = [];
-    let movedExisting = false;
 
+    // Track URLs being added in this drop to avoid intra-drop duplicates.
+    const seenNormalizedUrls = new Set(
+      bookmarks.map((b) => normalizeBookmarkUrl(b.url))
+    );
+
+    // Pending saves: [temporaryId, addBookmark promise]
+    const pending: Array<{ temporaryId: string; promise: Promise<ImageBookmark | null> }> = [];
+
+    // Helper: inject a placeholder immediately and queue the background save.
+    const scheduleAdd = (
+      url: string,
+      extra: Partial<Pick<ImageBookmark, 'title' | 'mimeType' | 'mediaType'>> = {}
+    ) => {
+      const temporaryId = `pending-${crypto.randomUUID()}`;
+      const optimisticBookmark: ImageBookmark = {
+        id: temporaryId,
+        isPending: true,
+        url,
+        mediaType: extra.mediaType ?? 'image',
+        mimeType: extra.mimeType,
+        title: extra.title,
+        categories: selectedCategories.length > 0 ? selectedCategories : undefined,
+        createdAt: Date.now(),
+      };
+      optimisticBookmark.searchTokens = buildSearchTokens(optimisticBookmark);
+      setBookmarks((prev) => [optimisticBookmark, ...prev]);
+
+      const promise = addBookmark({
+        url,
+        title: extra.title,
+        mimeType: extra.mimeType,
+        mediaType: extra.mediaType,
+        categories: selectedCategories.length > 0 ? selectedCategories : undefined,
+      }).catch((err) => {
+        console.error('Failed to add dropped bookmark:', err);
+        return null;
+      });
+
+      pending.push({ temporaryId, promise });
+    };
+
+    // --- Dropped URL ---
     if (droppedUrl && isValidImageUrl(droppedUrl)) {
-      if (await isDuplicateUrl(droppedUrl)) {
+      const normalized = normalizeBookmarkUrl(droppedUrl);
+      if (seenNormalizedUrls.has(normalized)) {
         const reordered = await moveBookmarkToFrontByUrl(droppedUrl);
-        if (reordered) {
-          setBookmarks(reordered);
-          movedExisting = true;
-        }
+        if (reordered) setBookmarks(reordered);
         errors.push('This image is already in your bookmarks.');
       } else {
-        const bookmark = await addBookmark({
-          url: droppedUrl,
-          categories: selectedCategories.length > 0 ? selectedCategories : undefined,
-        });
-        newItems.push(bookmark);
+        seenNormalizedUrls.add(normalized);
+        scheduleAdd(droppedUrl);
       }
     }
 
+    // --- Dropped files ---
     const files = Array.from(e.dataTransfer.files);
     for (const file of files) {
       const info = getFileInfo(file);
@@ -387,40 +399,40 @@ export default function Gallery({
       }
       try {
         const dataUrl = await readFileAsDataUrl(file);
-        if (await isDuplicateUrl(dataUrl)) {
+        const normalized = normalizeBookmarkUrl(dataUrl);
+        if (seenNormalizedUrls.has(normalized)) {
           const reordered = await moveBookmarkToFrontByUrl(dataUrl);
-          if (reordered) {
-            setBookmarks(reordered);
-            movedExisting = true;
-          }
+          if (reordered) setBookmarks(reordered);
           errors.push(`${file.name} is already in your bookmarks.`);
           continue;
         }
-        const bookmark = await addBookmark({
-          url: dataUrl,
-          title: file.name,
-          mimeType: info.mimeType,
-          mediaType: info.mediaType,
-          categories: selectedCategories.length > 0 ? selectedCategories : undefined,
-        });
-        newItems.push(bookmark);
-      } catch (error) {
-        console.error('Failed to read file:', error);
+        seenNormalizedUrls.add(normalized);
+        scheduleAdd(dataUrl, { title: file.name, mimeType: info.mimeType, mediaType: info.mediaType });
+      } catch (err) {
+        console.error('Failed to read file:', err);
         errors.push(`Something went wrong while reading ${file.name}.`);
       }
     }
 
-    if (newItems.length > 0) {
-      setBookmarks(prev => [...newItems, ...prev]);
-      onAddBookmark();
-    }
-
-    if (movedExisting) {
-      onAddBookmark();
-    }
-
     if (errors.length > 0) {
       setDropError(errors.join(' '));
+    }
+
+    // Resolve all pending saves concurrently.
+    for (const { temporaryId, promise } of pending) {
+      promise.then((persisted) => {
+        if (persisted) {
+          // Swap placeholder for the real bookmark.
+          setBookmarks((prev) => [
+            persisted,
+            ...prev.filter((b) => b.id !== temporaryId && b.id !== persisted.id),
+          ]);
+          onAddBookmark();
+        } else {
+          // Save failed — remove the placeholder.
+          setBookmarks((prev) => prev.filter((b) => b.id !== temporaryId));
+        }
+      });
     }
   };
 
@@ -608,11 +620,10 @@ export default function Gallery({
               type="button"
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                currentPage === 1
-                  ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
-              }`}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${currentPage === 1
+                ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+                }`}
             >
               Previous
             </button>
@@ -634,11 +645,10 @@ export default function Gallery({
                     key={page}
                     type="button"
                     onClick={() => setCurrentPage(page)}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white shadow'
-                        : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
-                    }`}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${currentPage === page
+                      ? 'bg-blue-600 text-white shadow'
+                      : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+                      }`}
                     aria-current={currentPage === page ? 'page' : undefined}
                   >
                     {page}
@@ -650,11 +660,10 @@ export default function Gallery({
               type="button"
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                currentPage === totalPages
-                  ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
-              }`}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${currentPage === totalPages
+                ? 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 shadow'
+                }`}
             >
               Next
             </button>
@@ -804,11 +813,10 @@ export default function Gallery({
                 type="button"
                 onClick={() => setBulkEditing(true)}
                 disabled={selectedIds.length === 0}
-                className={`px-3 py-1 rounded-md text-white font-medium ${
-                  selectedIds.length === 0
-                    ? 'bg-blue-300 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                } transition-colors`}
+                className={`px-3 py-1 rounded-md text-white font-medium ${selectedIds.length === 0
+                  ? 'bg-blue-300 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700'
+                  } transition-colors`}
               >
                 Edit Selected ({selectedIds.length})
               </button>
@@ -816,11 +824,10 @@ export default function Gallery({
                 type="button"
                 onClick={() => void handleDeleteSelected()}
                 disabled={selectedIds.length === 0}
-                className={`px-3 py-1 rounded-md text-white font-medium ${
-                  selectedIds.length === 0
-                    ? 'bg-red-300 cursor-not-allowed'
-                    : 'bg-red-600 hover:bg-red-700'
-                } transition-colors`}
+                className={`px-3 py-1 rounded-md text-white font-medium ${selectedIds.length === 0
+                  ? 'bg-red-300 cursor-not-allowed'
+                  : 'bg-red-600 hover:bg-red-700'
+                  } transition-colors`}
               >
                 Delete Selected ({selectedIds.length})
               </button>
@@ -846,7 +853,7 @@ export default function Gallery({
       {totalBookmarks > 0 && <PaginationControls className="mb-4" showMeta={false} />}
 
 
-          {totalBookmarks === 0 ? (
+      {totalBookmarks === 0 ? (
 
 
         <div className="text-center py-12">
@@ -862,17 +869,19 @@ export default function Gallery({
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
           {paginatedBookmarks.map((bookmark, index) => {
             const isSelected = selectedIds.includes(bookmark.id);
+            const isPending = Boolean(bookmark.isPending);
             return (
               <div
                 key={bookmark.id}
                 onClick={(event) =>
                   selectMode
                     ? toggleSelection(bookmark.id, index, event.shiftKey)
-                    : onImageClick(index, paginatedBookmarks)
+                    : !isPending
+                      ? onImageClick(index, paginatedBookmarks)
+                      : undefined
                 }
-                className={`group relative aspect-[4/3] rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-transform duration-200 cursor-pointer bg-gray-100 dark:bg-gray-800 hover:z-10 hover:scale-105 ${
-                  isSelected ? 'ring-4 ring-blue-500' : ''
-                }`}
+                className={`group relative aspect-[4/3] rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-transform duration-200 cursor-pointer bg-gray-100 dark:bg-gray-800 hover:z-10 hover:scale-105 ${isSelected ? 'ring-4 ring-blue-500' : ''
+                  }`}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
@@ -880,7 +889,7 @@ export default function Gallery({
                     e.preventDefault();
                     if (selectMode) {
                       toggleSelection(bookmark.id, index, false);
-                    } else {
+                    } else if (!isPending) {
                       onImageClick(index, paginatedBookmarks);
                     }
                   }
@@ -906,7 +915,16 @@ export default function Gallery({
                       />
                     </div>
                   )}
-                  {isVideoBookmark(bookmark) ? (
+                  {isPending ? (
+                    <div className="h-full w-full bg-gradient-to-br from-slate-200 via-slate-100 to-slate-200 dark:from-slate-800 dark:via-slate-700 dark:to-slate-800 animate-pulse">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/25 text-white">
+                        <div className="h-8 w-8 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                        <div className="rounded-full bg-amber-500/90 px-3 py-1 text-xs font-semibold tracking-wide">
+                          Saving...
+                        </div>
+                      </div>
+                    </div>
+                  ) : isVideoBookmark(bookmark) ? (
                     <video
                       src={bookmark.url}
                       className="h-full w-full object-cover"
@@ -930,14 +948,13 @@ export default function Gallery({
                     />
                   )}
 
-                  {!selectMode && (
+                  {!selectMode && !isPending && (
                     <>
                       <div
-                        className={`absolute inset-0 bg-black/60 flex items-end p-2 transition-opacity duration-200 z-10 ${
-                          infoVisibleId === bookmark.id
-                            ? 'opacity-100'
-                            : 'opacity-0 pointer-events-none'
-                        }`}
+                        className={`absolute inset-0 bg-black/60 flex items-end p-2 transition-opacity duration-200 z-10 ${infoVisibleId === bookmark.id
+                          ? 'opacity-100'
+                          : 'opacity-0 pointer-events-none'
+                          }`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="w-full p-2 bg-gradient-to-t from-black/80 to-transparent text-white">
@@ -1058,11 +1075,10 @@ export default function Gallery({
                           setEditingBookmark(bookmark);
                           setInfoVisibleId(null);
                         }}
-                        className={`absolute top-2 right-10 p-1.5 bg-blue-500 text-white rounded-full transition-opacity z-20 hover:bg-blue-600 ${
-                          infoVisibleId === bookmark.id
-                            ? 'opacity-100'
-                            : 'opacity-0 pointer-events-none'
-                        }`}
+                        className={`absolute top-2 right-10 p-1.5 bg-blue-500 text-white rounded-full transition-opacity z-20 hover:bg-blue-600 ${infoVisibleId === bookmark.id
+                          ? 'opacity-100'
+                          : 'opacity-0 pointer-events-none'
+                          }`}
                         aria-label="Edit bookmark"
                         title="Edit bookmark"
                       >
@@ -1075,11 +1091,10 @@ export default function Gallery({
                         onClick={(e) => {
                           void handleRemove(e, bookmark.id);
                         }}
-                        className={`absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full transition-opacity z-20 hover:bg-red-600 ${
-                          infoVisibleId === bookmark.id
-                            ? 'opacity-100'
-                            : 'opacity-0 pointer-events-none'
-                        }`}
+                        className={`absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full transition-opacity z-20 hover:bg-red-600 ${infoVisibleId === bookmark.id
+                          ? 'opacity-100'
+                          : 'opacity-0 pointer-events-none'
+                          }`}
                         aria-label="Remove bookmark"
                         title="Remove bookmark"
                       >

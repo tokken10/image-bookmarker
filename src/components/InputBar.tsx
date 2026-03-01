@@ -1,14 +1,28 @@
 import { useEffect, useState } from 'react';
+import type { ImageBookmark } from '../types';
 import { isValidImageUrl } from '../utils/validation';
-import { addBookmark, isDuplicateUrl, moveBookmarkToFrontByUrl } from '../lib/storage';
+import { addBookmark, moveBookmarkToFrontByUrl, normalizeBookmarkUrl } from '../lib/storage';
+import { buildSearchTokens } from '../utils/search';
 
 interface InputBarProps {
-  onAddBookmark: () => void;
+  onOptimisticBookmarkAdd: (bookmark: ImageBookmark) => void;
+  onOptimisticBookmarkResolve: (temporaryId: string, bookmark: ImageBookmark) => void;
+  onOptimisticBookmarkRemove: (temporaryId: string) => void;
+  onBookmarksReordered: (bookmarks: ImageBookmark[]) => void;
+  currentBookmarks: ImageBookmark[];
   selectedCategories: string[];
   onClose: () => void;
 }
 
-export default function InputBar({ onAddBookmark, selectedCategories, onClose }: InputBarProps) {
+export default function InputBar({
+  onOptimisticBookmarkAdd,
+  onOptimisticBookmarkResolve,
+  onOptimisticBookmarkRemove,
+  onBookmarksReordered,
+  currentBookmarks,
+  selectedCategories,
+  onClose,
+}: InputBarProps) {
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
@@ -22,6 +36,7 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    let temporaryId: string | null = null;
 
     if (!url.trim()) {
       setError('Please enter an image URL');
@@ -37,40 +52,63 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
     setError('');
 
     try {
-      const duplicate = await isDuplicateUrl(url);
+      const normalizedCategories = categories
+        .split(',')
+        .map((category) => category.trim())
+        .filter(Boolean);
+
+      const trimmedUrl = url.trim();
+      const normalizedInputUrl = normalizeBookmarkUrl(trimmedUrl);
+      const duplicate = currentBookmarks.some(
+        (b) => normalizeBookmarkUrl(b.url) === normalizedInputUrl
+      );
+
       if (duplicate) {
-        await moveBookmarkToFrontByUrl(url);
-        onAddBookmark();
+        const reordered = await moveBookmarkToFrontByUrl(trimmedUrl);
+        if (reordered) {
+          onBookmarksReordered(reordered);
+        }
         setError('This image is already in your bookmarks.');
+        setIsSubmitting(false);
         return;
       }
 
-      await new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = resolve;
-        image.onerror = () => reject(new Error('Failed to load image'));
-        image.src = url;
-      });
-
-      await addBookmark({
-        url,
+      temporaryId = `pending-${crypto.randomUUID()}`;
+      const optimisticBookmark: ImageBookmark = {
+        id: temporaryId,
+        isPending: true,
+        url: trimmedUrl,
         title: title.trim() || undefined,
         sourceUrl: sourceUrl.trim() || undefined,
-        categories: categories
-          .split(',')
-          .map((category) => category.trim())
-          .filter(Boolean),
-      });
+        categories: normalizedCategories.length > 0 ? normalizedCategories : undefined,
+        mediaType: 'image',
+        createdAt: Date.now(),
+      };
+      optimisticBookmark.searchTokens = buildSearchTokens(optimisticBookmark);
+      onOptimisticBookmarkAdd(optimisticBookmark);
 
+      // Close the form immediately so the gallery placeholder is visible.
       setUrl('');
       setTitle('');
       setSourceUrl('');
       setCategories(selectedCategories.length > 0 ? selectedCategories.join(', ') : '');
-      onAddBookmark();
       onClose();
+
+      // Continue saving in the background.
+      const persistedBookmark = await addBookmark({
+        url: trimmedUrl,
+        title: title.trim() || undefined,
+        sourceUrl: sourceUrl.trim() || undefined,
+        categories: normalizedCategories,
+      });
+      onOptimisticBookmarkResolve(temporaryId, persistedBookmark);
     } catch (submitError) {
       console.error('Failed to add bookmark:', submitError);
-      setError('Failed to add image. Please check the URL and try again.');
+      if (temporaryId) {
+        onOptimisticBookmarkRemove(temporaryId);
+      }
+      // If the form is already closed we can't show the error inline;
+      // log it — the placeholder will be removed so the user can retry.
     } finally {
       setIsSubmitting(false);
     }
@@ -150,11 +188,10 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
           <button
             type="submit"
             disabled={isSubmitting || !url.trim()}
-            className={`px-4 py-2 rounded-md text-white font-medium ${
-              isSubmitting || !url.trim()
+            className={`px-4 py-2 rounded-md text-white font-medium ${isSubmitting || !url.trim()
                 ? 'bg-blue-400 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700'
-            } transition-colors`}
+              } transition-colors`}
           >
             {isSubmitting ? 'Adding...' : 'Add Bookmark'}
           </button>
@@ -162,11 +199,10 @@ export default function InputBar({ onAddBookmark, selectedCategories, onClose }:
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className={`px-4 py-2 rounded-md text-white font-medium ${
-              isSubmitting
+            className={`px-4 py-2 rounded-md text-white font-medium ${isSubmitting
                 ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-gray-600 hover:bg-gray-700'
-            } transition-colors`}
+              } transition-colors`}
           >
             Cancel
           </button>
