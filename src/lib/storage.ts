@@ -234,17 +234,39 @@ function clearShuffleBackup(): void {
 }
 
 async function fetchBookmarksForUser(userId: string): Promise<BookmarkRow[]> {
-  const { data, error } = await supabase
-    .from('bookmarks')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+  const PAGE_SIZE = 1000;
+  const rows: BookmarkRow[] = [];
+  let from = 0;
 
-  if (error) {
-    throw error;
+  // Supabase/PostgREST defaults to a max row limit per select, so fetch in pages.
+  while (true) {
+    const to = from + PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from('bookmarks')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      throw error;
+    }
+
+    const page = (data ?? []) as BookmarkRow[];
+    if (page.length === 0) {
+      break;
+    }
+
+    rows.push(...page);
+
+    if (page.length < PAGE_SIZE) {
+      break;
+    }
+
+    from += PAGE_SIZE;
   }
 
-  return (data ?? []) as BookmarkRow[];
+  return rows;
 }
 
 async function seedDefaultsIfNeeded(userId: string): Promise<void> {
@@ -447,13 +469,12 @@ export async function addBookmarksFromImport(entries: BookmarkImport[]): Promise
     return { added: 0, skipped };
   }
 
-  const { data, error } = await supabase.from('bookmarks').insert(rowsToInsert).select('id');
+  const { error } = await supabase.from('bookmarks').insert(rowsToInsert);
   if (error) {
     throw error;
   }
 
-  const added = data?.length ?? rowsToInsert.length;
-  return { added, skipped };
+  return { added: rowsToInsert.length, skipped };
 }
 
 export async function updateBookmark(
