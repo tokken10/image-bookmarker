@@ -34,6 +34,7 @@ export default function App() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [lightboxBookmarks, setLightboxBookmarks] = useState<ImageBookmark[]>([]);
+  const [lightboxOverlayOpacity, setLightboxOverlayOpacity] = useState(0.9);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [showInputBar, setShowInputBar] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -592,6 +593,8 @@ export default function App() {
           onClose={handleCloseLightbox}
           onNext={handleNextImage}
           onPrev={handlePrevImage}
+          overlayOpacity={lightboxOverlayOpacity}
+          onOverlayOpacityChange={setLightboxOverlayOpacity}
         />
       )}
       <ScrollToTopButton />
