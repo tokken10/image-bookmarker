@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ImageBookmark } from '../types';
 import { isVideoBookmark } from '../utils/validation';
 
@@ -22,6 +22,9 @@ export default function Lightbox({
 
   const [isZoomed, setIsZoomed] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isTitleVisible, setIsTitleVisible] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsZoomed(false);
@@ -48,6 +51,15 @@ export default function Lightbox({
   }, [currentIndex, bookmarks.length, isPlaying]);
 
   useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       switch (e.key) {
         case 'Escape':
@@ -68,10 +80,22 @@ export default function Lightbox({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose, onNext, onPrev]);
 
+  const toggleFullscreen = async () => {
+    if (!modalRef.current) return;
+
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    await modalRef.current.requestFullscreen();
+  };
+
   if (!currentBookmark) return null;
 
   return (
-    <div 
+    <div
+      ref={modalRef}
       className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4"
       onClick={(e) => {
         // Close if clicking on the backdrop (not the image or controls)
@@ -83,114 +107,151 @@ export default function Lightbox({
       aria-modal="true"
       aria-label="Image viewer"
     >
-      <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
-        {/* Close button */}
+      {/* Top-right controls */}
+      <div className="absolute top-4 right-4 flex items-center gap-3">
         <button
-          onClick={onClose}
-          className="absolute -top-10 right-0 p-2 bg-black/50 text-white hover:bg-black/70 hover:text-gray-300 focus:outline-none rounded"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFullscreen();
+          }}
+          className="p-2 bg-black/50 text-white hover:bg-black/70 rounded-full"
+          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+        >
+          {isFullscreen ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 4H4v4M16 4h4v4M8 20H4v-4M20 20h-4v-4" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M20 8V4h-4M4 16v4h4M20 16v4h-4" />
+            </svg>
+          )}
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsTitleVisible((visible) => !visible);
+          }}
+          className="p-2 bg-black/50 text-white hover:bg-black/70 rounded-full"
+          aria-label={isTitleVisible ? 'Hide image title' : 'Show image title'}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M12 20a8 8 0 100-16 8 8 0 000 16z" />
+          </svg>
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsPlaying(true);
+          }}
+          disabled={isPlaying}
+          className="p-2 bg-black/50 text-white hover:bg-black/70 rounded-full disabled:opacity-50"
+          aria-label="Play slideshow"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsPlaying(false);
+          }}
+          disabled={!isPlaying}
+          className="p-2 bg-black/50 text-white hover:bg-black/70 rounded-full disabled:opacity-50"
+          aria-label="Pause slideshow"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+          </svg>
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          className="p-2 bg-black/50 text-white hover:bg-black/70 hover:text-gray-300 focus:outline-none rounded-full"
           aria-label="Close"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
-
-        {/* Image container */}
-        <div className="flex-1 flex items-center justify-center">
-          {isVideo ? (
-            <video
-              src={currentBookmark.url}
-              controls
-              playsInline
-              className="max-h-[70vh] w-full max-w-full"
-            >
-              Your browser does not support the video tag.
-            </video>
-          ) : (
-            <img
-              src={currentBookmark.url}
-              alt={currentBookmark.title || 'Bookmarked image'}
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsZoomed((z) => !z);
-              }}
-              className={`max-w-full max-h-[70vh] object-contain transition-transform duration-300 origin-center ${
-                isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'
-              }`}
-            />
-          )}
-        </div>
-
-        {/* Navigation buttons */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onPrev();
-          }}
-          className="absolute left-0 top-1/2 -translate-y-1/2 p-4 bg-black/50 text-white hover:bg-black/70 rounded-r-lg transition-colors"
-          disabled={currentIndex === 0}
-          aria-label="Previous image"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onNext();
-          }}
-          className="absolute right-0 top-1/2 -translate-y-1/2 p-4 bg-black/50 text-white hover:bg-black/70 rounded-l-lg transition-colors"
-          disabled={currentIndex === bookmarks.length - 1}
-          aria-label="Next image"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-
-        {/* Basic info */}
-        <div className="mt-4 text-white text-center">
-          {currentBookmark.title && (
-            <h3 className="text-xl font-medium mb-1">{currentBookmark.title}</h3>
-          )}
-          <p className="text-sm text-gray-300">
-            {currentIndex + 1} of {bookmarks.length}
-          </p>
-        </div>
-
-        {/* Slideshow controls */}
-        <div className="mt-2 flex justify-center gap-4">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsPlaying(true);
-            }}
-            disabled={isPlaying}
-            className="p-2 bg-black/50 text-white hover:bg-black/70 rounded disabled:opacity-50"
-            aria-label="Play slideshow"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsPlaying(false);
-            }}
-            disabled={!isPlaying}
-            className="p-2 bg-black/50 text-white hover:bg-black/70 rounded disabled:opacity-50"
-            aria-label="Pause slideshow"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
-            </svg>
-          </button>
-        </div>
       </div>
 
+      {/* Navigation buttons */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onPrev();
+        }}
+        className="absolute left-4 top-1/2 -translate-y-1/2 p-4 bg-black/50 text-white hover:bg-black/70 rounded-full transition-colors disabled:opacity-40"
+        disabled={currentIndex === 0}
+        aria-label="Previous image"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onNext();
+        }}
+        className="absolute right-4 top-1/2 -translate-y-1/2 p-4 bg-black/50 text-white hover:bg-black/70 rounded-full transition-colors disabled:opacity-40"
+        disabled={currentIndex === bookmarks.length - 1}
+        aria-label="Next image"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
+        {/* Image container */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="relative inline-flex">
+            {isVideo ? (
+              <video
+                src={currentBookmark.url}
+                controls
+                playsInline
+                className="max-h-[70vh] w-full max-w-full"
+              >
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <img
+                src={currentBookmark.url}
+                alt={currentBookmark.title || 'Bookmarked image'}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsZoomed((z) => !z);
+                }}
+                className={`max-w-full max-h-[70vh] object-contain transition-transform duration-300 origin-center ${
+                  isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'
+                }`}
+              />
+            )}
+
+            <p className="absolute left-0 -bottom-7 text-sm text-gray-300">
+              {currentIndex + 1} of {bookmarks.length}
+            </p>
+          </div>
+        </div>
+
+        {/* Basic info */}
+        {isTitleVisible && currentBookmark.title && (
+          <div className="mt-4 text-white text-center">
+            <h3 className="text-xl font-medium mb-1">{currentBookmark.title}</h3>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
