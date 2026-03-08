@@ -31,7 +31,8 @@ export default function Lightbox({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showOpacityControls, setShowOpacityControls] = useState(false);
   const [hideChrome, setHideChrome] = useState(false);
-  const mediaRef = useRef<HTMLImageElement | HTMLVideoElement | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     setIsZoomed(false);
@@ -90,7 +91,7 @@ export default function Lightbox({
 
   const handleToggleFullscreen = async (e: MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    const mediaElement = mediaRef.current;
+    const mediaElement = (isVideo ? videoRef.current : imageRef.current) as Element | null;
     if (!mediaElement) return;
 
     try {
@@ -103,6 +104,8 @@ export default function Lightbox({
       // Ignore fullscreen errors (browser policy or unsupported).
     }
   };
+
+  const title = currentBookmark.title;
 
   return (
     <div 
@@ -294,7 +297,7 @@ export default function Lightbox({
               src={currentBookmark.url}
               controls
               playsInline
-              ref={mediaRef}
+              ref={videoRef}
               className={`max-h-[70vh] w-full max-w-full ${isFullscreen ? 'max-h-screen max-w-screen' : ''}`}
             >
               Your browser does not support the video tag.
@@ -303,7 +306,7 @@ export default function Lightbox({
             <img
               src={currentBookmark.url}
               alt={currentBookmark.title || 'Bookmarked image'}
-              ref={mediaRef}
+              ref={imageRef}
               onClick={(e) => {
                 e.stopPropagation();
                 setIsZoomed((z) => !z);
@@ -324,14 +327,14 @@ export default function Lightbox({
 
         {/* Basic info */}
         <div className="mt-8 text-white text-center">
-          {!hideChrome && showInfo && currentBookmark.title && (
+          {!hideChrome && showInfo && title && (
             <div className="inline-flex items-center gap-2">
-              <h3 className="text-xl font-medium">{currentBookmark.title}</h3>
+              <h3 className="text-xl font-medium">{title}</h3>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (navigator?.clipboard?.writeText) {
-                    navigator.clipboard.writeText(currentBookmark.title);
+                  if (title && navigator?.clipboard?.writeText) {
+                    navigator.clipboard.writeText(title);
                   }
                 }}
                 className="p-1.5 bg-black/50 text-white hover:bg-black/70 rounded-full"
