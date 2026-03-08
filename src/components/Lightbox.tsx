@@ -83,16 +83,46 @@ export default function Lightbox({
       aria-modal="true"
       aria-label="Image viewer"
     >
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 p-2 bg-black/50 text-white hover:bg-black/70 hover:text-gray-300 focus:outline-none rounded-full"
-        aria-label="Close"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+      {/* Top-right controls */}
+      <div className="absolute top-4 right-4 flex items-center gap-3">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsPlaying(true);
+          }}
+          disabled={isPlaying}
+          className="p-2 bg-black/50 text-white hover:bg-black/70 rounded-full disabled:opacity-50"
+          aria-label="Play slideshow"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </button>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsPlaying(false);
+          }}
+          disabled={!isPlaying}
+          className="p-2 bg-black/50 text-white hover:bg-black/70 rounded-full disabled:opacity-50"
+          aria-label="Pause slideshow"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
+          </svg>
+        </button>
+
+        <button
+          onClick={onClose}
+          className="p-2 bg-black/50 text-white hover:bg-black/70 hover:text-gray-300 focus:outline-none rounded-full"
+          aria-label="Close"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
 
       {/* Navigation buttons */}
       <button
@@ -127,6 +157,7 @@ export default function Lightbox({
 
         {/* Image container */}
         <div className="flex-1 flex items-center justify-center">
+          <div className="relative inline-flex">
           {isVideo ? (
             <video
               src={currentBookmark.url}
@@ -149,6 +180,11 @@ export default function Lightbox({
               }`}
             />
           )}
+
+            <p className="absolute left-0 -bottom-7 text-sm text-gray-300">
+              {currentIndex + 1} of {bookmarks.length}
+            </p>
+          </div>
         </div>
 
         {/* Basic info */}
@@ -156,40 +192,8 @@ export default function Lightbox({
           {currentBookmark.title && (
             <h3 className="text-xl font-medium mb-1">{currentBookmark.title}</h3>
           )}
-          <p className="text-sm text-gray-300">
-            {currentIndex + 1} of {bookmarks.length}
-          </p>
         </div>
 
-        {/* Slideshow controls */}
-        <div className="mt-2 flex justify-center gap-4">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsPlaying(true);
-            }}
-            disabled={isPlaying}
-            className="p-2 bg-black/50 text-white hover:bg-black/70 rounded disabled:opacity-50"
-            aria-label="Play slideshow"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsPlaying(false);
-            }}
-            disabled={!isPlaying}
-            className="p-2 bg-black/50 text-white hover:bg-black/70 rounded disabled:opacity-50"
-            aria-label="Pause slideshow"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 5h4v14H6zM14 5h4v14h-4z" />
-            </svg>
-          </button>
-        </div>
       </div>
 
     </div>
