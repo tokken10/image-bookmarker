@@ -83,17 +83,47 @@ export default function Lightbox({
       aria-modal="true"
       aria-label="Image viewer"
     >
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 p-2 bg-black/50 text-white hover:bg-black/70 hover:text-gray-300 focus:outline-none rounded-full"
+        aria-label="Close"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Navigation buttons */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onPrev();
+        }}
+        className="absolute left-4 top-1/2 -translate-y-1/2 p-4 bg-black/50 text-white hover:bg-black/70 rounded-full transition-colors disabled:opacity-40"
+        disabled={currentIndex === 0}
+        aria-label="Previous image"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onNext();
+        }}
+        className="absolute right-4 top-1/2 -translate-y-1/2 p-4 bg-black/50 text-white hover:bg-black/70 rounded-full transition-colors disabled:opacity-40"
+        disabled={currentIndex === bookmarks.length - 1}
+        aria-label="Next image"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
       <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute -top-10 right-0 p-2 bg-black/50 text-white hover:bg-black/70 hover:text-gray-300 focus:outline-none rounded"
-          aria-label="Close"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
 
         {/* Image container */}
         <div className="flex-1 flex items-center justify-center">
@@ -120,35 +150,6 @@ export default function Lightbox({
             />
           )}
         </div>
-
-        {/* Navigation buttons */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onPrev();
-          }}
-          className="absolute left-0 top-1/2 -translate-y-1/2 p-4 bg-black/50 text-white hover:bg-black/70 rounded-r-lg transition-colors"
-          disabled={currentIndex === 0}
-          aria-label="Previous image"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onNext();
-          }}
-          className="absolute right-0 top-1/2 -translate-y-1/2 p-4 bg-black/50 text-white hover:bg-black/70 rounded-l-lg transition-colors"
-          disabled={currentIndex === bookmarks.length - 1}
-          aria-label="Next image"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
 
         {/* Basic info */}
         <div className="mt-4 text-white text-center">
