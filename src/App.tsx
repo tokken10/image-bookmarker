@@ -41,6 +41,7 @@ export default function App() {
   const [selectMode, setSelectMode] = useState(false);
   const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false);
   const [showUntitledOnly, setShowUntitledOnly] = useState(false);
+  const [gridResetToken, setGridResetToken] = useState(0);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [csvStatus, setCsvStatus] = useState<string | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
@@ -216,6 +217,7 @@ export default function App() {
   };
 
   const handleOptimisticBookmarkAdd = (bookmark: ImageBookmark) => {
+    setGridResetToken((prev) => prev + 1);
     setBookmarks((prev) => [bookmark, ...prev.filter((item) => item.id !== bookmark.id)]);
   };
 
@@ -223,6 +225,7 @@ export default function App() {
     temporaryId: string,
     bookmark: ImageBookmark
   ) => {
+    setGridResetToken((prev) => prev + 1);
     setBookmarks((prev) => [
       bookmark,
       ...prev.filter((item) => item.id !== temporaryId && item.id !== bookmark.id),
@@ -234,6 +237,7 @@ export default function App() {
   };
 
   const handleBookmarksReordered = (nextBookmarks: ImageBookmark[]) => {
+    setGridResetToken((prev) => prev + 1);
     setBookmarks(nextBookmarks);
   };
 
@@ -574,6 +578,7 @@ export default function App() {
         <Gallery
           bookmarksFromApp={bookmarks}
           loadingFromApp={bookmarksLoading}
+          gridResetToken={gridResetToken}
           onImageClick={handleImageClick}
           onAddBookmark={handleAddBookmark}
           selectedCategories={selectedCategories}

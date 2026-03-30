@@ -71,6 +71,7 @@ const ITEMS_PER_PAGE_STORAGE_KEY = 'imageBookmarks:itemsPerPage:v1';
 interface GalleryProps {
   bookmarksFromApp: ImageBookmark[];
   loadingFromApp: boolean;
+  gridResetToken: number;
   onImageClick: (index: number, items: ImageBookmark[]) => void;
   onAddBookmark: () => void;
   selectedCategories: string[];
@@ -85,6 +86,7 @@ interface GalleryProps {
 export default function Gallery({
   bookmarksFromApp,
   loadingFromApp,
+  gridResetToken,
   onImageClick,
   onAddBookmark,
   selectedCategories,
@@ -153,6 +155,12 @@ export default function Gallery({
   useEffect(() => {
     setBookmarks(bookmarksFromApp);
   }, [bookmarksFromApp]);
+
+  useEffect(() => {
+    if (gridResetToken > 0) {
+      setCurrentPage(1);
+    }
+  }, [gridResetToken]);
 
   useEffect(() => {
     setIsLoading(loadingFromApp);
