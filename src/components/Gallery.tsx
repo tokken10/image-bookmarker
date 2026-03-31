@@ -117,6 +117,7 @@ export default function Gallery({
   const lastSelectedIndexRef = useRef<number | null>(null);
   const listTopRef = useRef<HTMLDivElement | null>(null);
   const previousPageRef = useRef<number | null>(null);
+  const lastGridResetTokenRef = useRef(gridResetToken);
   const [goToPageValue, setGoToPageValue] = useState('');
   const [isEditingGoToPage, setIsEditingGoToPage] = useState(false);
 
@@ -167,6 +168,13 @@ export default function Gallery({
   }, [loadingFromApp]);
 
   useEffect(() => {
+    // If an add/reorder happened since the last key change, always land on
+    // page 1 — never restore a stale saved page that would hide the new item.
+    if (gridResetToken !== lastGridResetTokenRef.current) {
+      lastGridResetTokenRef.current = gridResetToken;
+      setCurrentPage(1);
+      return;
+    }
     try {
       const stored = localStorage.getItem(PAGINATION_STATE_KEY);
       if (stored) {
@@ -181,7 +189,7 @@ export default function Gallery({
       console.error('Failed to load pagination state:', error);
     }
     setCurrentPage(1);
-  }, [paginationKey]);
+  }, [paginationKey, gridResetToken]);
 
   useEffect(() => {
     try {
