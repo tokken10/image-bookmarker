@@ -1020,6 +1020,18 @@ export default function Gallery({
                             </button>
                           </div>
                           <p className="text-xs opacity-80">{formatDate(bookmark.createdAt)}</p>
+                          {bookmark.categories && bookmark.categories.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {bookmark.categories.map((category) => (
+                                <span
+                                  key={`${bookmark.id}-${category}`}
+                                  className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] text-white"
+                                >
+                                  {category}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           <div className="flex items-start mt-1">
                             <a
                               href={bookmark.url}
