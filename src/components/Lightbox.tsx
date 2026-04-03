@@ -106,8 +106,7 @@ export default function Lightbox({
   };
 
   const title = currentBookmark.title;
-  const categories = currentBookmark.categories ?? [];
-  const hasInfo = Boolean(title) || categories.length > 0;
+  const hasInfo = Boolean(title);
 
   return (
     <div 
@@ -352,18 +351,6 @@ export default function Lightbox({
                 </div>
               )}
 
-              {categories.length > 0 && (
-                <div className="inline-flex flex-wrap justify-center gap-2 max-w-2xl">
-                  {categories.map((category) => (
-                    <span
-                      key={category}
-                      className="px-2.5 py-1 rounded-full bg-white/20 text-sm text-white"
-                    >
-                      {category}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
           )}
         </div>
