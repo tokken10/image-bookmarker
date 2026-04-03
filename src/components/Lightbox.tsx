@@ -106,6 +106,8 @@ export default function Lightbox({
   };
 
   const title = currentBookmark.title;
+  const categories = currentBookmark.categories ?? [];
+  const hasInfo = Boolean(title) || categories.length > 0;
 
   return (
     <div 
@@ -194,9 +196,9 @@ export default function Lightbox({
             e.stopPropagation();
             setShowInfo((prev) => !prev);
           }}
-          disabled={!currentBookmark.title}
+          disabled={!hasInfo}
           className="p-2 bg-black/50 text-white hover:bg-black/70 rounded-full disabled:opacity-50"
-          aria-label={showInfo ? 'Hide title' : 'Show title'}
+          aria-label={showInfo ? 'Hide info' : 'Show info'}
           aria-pressed={showInfo}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -327,24 +329,41 @@ export default function Lightbox({
 
         {/* Basic info */}
         <div className="mt-8 text-white text-center">
-          {!hideChrome && showInfo && title && (
-            <div className="inline-flex items-center gap-2">
-              <h3 className="text-xl font-medium">{title}</h3>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (title && navigator?.clipboard?.writeText) {
-                    navigator.clipboard.writeText(title);
-                  }
-                }}
-                className="p-1.5 bg-black/50 text-white hover:bg-black/70 rounded-full"
-                aria-label="Copy title"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 8h10v10H8z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 16H5a2 2 0 01-2-2V5a2 2 0 012-2h9a2 2 0 012 2v1" />
-                </svg>
-              </button>
+          {!hideChrome && showInfo && hasInfo && (
+            <div className="inline-flex flex-col items-center gap-3">
+              {title && (
+                <div className="inline-flex items-center gap-2">
+                  <h3 className="text-xl font-medium">{title}</h3>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (title && navigator?.clipboard?.writeText) {
+                        navigator.clipboard.writeText(title);
+                      }
+                    }}
+                    className="p-1.5 bg-black/50 text-white hover:bg-black/70 rounded-full"
+                    aria-label="Copy title"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 8h10v10H8z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 16H5a2 2 0 01-2-2V5a2 2 0 012-2h9a2 2 0 012 2v1" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {categories.length > 0 && (
+                <div className="inline-flex flex-wrap justify-center gap-2 max-w-2xl">
+                  {categories.map((category) => (
+                    <span
+                      key={category}
+                      className="px-2.5 py-1 rounded-full bg-white/20 text-sm text-white"
+                    >
+                      {category}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
