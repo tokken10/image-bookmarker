@@ -7,6 +7,7 @@ interface CategorySelectorProps {
   onClear: () => void;
   onAddCategory: () => void;
   onDeleteCategory: (category: string) => void;
+  readOnly?: boolean;
 }
 
 export default function CategorySelector({
@@ -16,6 +17,7 @@ export default function CategorySelector({
   onClear,
   onAddCategory,
   onDeleteCategory,
+  readOnly = false,
 }: CategorySelectorProps) {
   const [isManageMode, setIsManageMode] = useState(false);
 
@@ -23,26 +25,28 @@ export default function CategorySelector({
     <div className="w-full max-w-4xl mx-auto p-4">
       <div className="flex items-center justify-between mb-2 gap-2">
         <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by categories</p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setIsManageMode((prev) => !prev)}
-            className="rounded-full border border-blue-600 px-3 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-gray-800"
-            aria-pressed={isManageMode}
-          >
-            {isManageMode ? 'Done' : 'Manage'}
-          </button>
-          <button
-            type="button"
-            onClick={onAddCategory}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-blue-600 text-blue-600 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-gray-800"
-            aria-label="Add new category"
-          >
-            <span aria-hidden="true" className="text-lg leading-none">
-              +
-            </span>
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsManageMode((prev) => !prev)}
+              className="rounded-full border border-blue-600 px-3 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-gray-800"
+              aria-pressed={isManageMode}
+            >
+              {isManageMode ? 'Done' : 'Manage'}
+            </button>
+            <button
+              type="button"
+              onClick={onAddCategory}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-blue-600 text-blue-600 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-gray-800"
+              aria-label="Add new category"
+            >
+              <span aria-hidden="true" className="text-lg leading-none">
+                +
+              </span>
+            </button>
+          </div>
+        )}
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         <button

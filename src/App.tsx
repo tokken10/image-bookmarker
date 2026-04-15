@@ -14,6 +14,7 @@ import {
   saveCustomCategories,
 } from './lib/storage';
 import { buildBookmarksCsv, parseBookmarksCsv } from './utils/csv';
+import { defaultImages } from './data/defaultImages';
 import { useAuth } from './auth/useAuth';
 import Header from './components/Header';
 import AuthScreen from './components/AuthScreen';
@@ -251,6 +252,19 @@ export default function App() {
     return Array.from(categorySet);
   }, [bookmarks, customCategories]);
 
+  const previewBookmarks = useMemo<ImageBookmark[]>(
+    () =>
+      defaultImages.map((image, index) => ({
+        id: `sample-${index}`,
+        url: image.url,
+        title: image.title,
+        categories: image.categories,
+        mediaType: 'image',
+        createdAt: Date.now() - index,
+      })),
+    []
+  );
+
   useEffect(() => {
     setSelectedCategories((prev) => {
       const next = prev.filter((category) => categories.includes(category));
@@ -441,7 +455,131 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
         <Header onLogIn={() => setShowAuthModal(true)} />
-        <SampleGallery />
+        <main className="py-8">
+          <div className="w-full max-w-4xl mx-auto px-4 pb-4">
+            <div className="rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
+              Preview mode: browse sample images using the same layout. Log in to add, edit, upload, and manage bookmarks.
+            </div>
+          </div>
+          <div className="w-full max-w-4xl mx-auto p-4">
+            <button
+              type="button"
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-2 rounded-md text-white font-medium bg-blue-600 hover:bg-blue-700 transition-colors"
+            >
+              + Add Bookmark
+            </button>
+          </div>
+          <div className="w-full max-w-4xl mx-auto p-4 flex flex-wrap gap-4">
+            <button
+              type="button"
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-2 rounded-md text-white font-medium bg-emerald-600 hover:bg-emerald-700 transition-colors"
+            >
+              Download CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-2 rounded-md text-white font-medium bg-emerald-500 hover:bg-emerald-600 transition-colors"
+            >
+              Upload CSV
+            </button>
+          </div>
+          <CategorySelector
+            categories={Array.from(new Set(previewBookmarks.flatMap((bookmark) => bookmark.categories ?? [])))}
+            selected={selectedCategories}
+            onToggle={(category) => {
+              setSelectedCategories((prev) =>
+                prev.includes(category)
+                  ? prev.filter((item) => item !== category)
+                  : [...prev, category]
+              );
+            }}
+            onClear={() => setSelectedCategories([])}
+            onAddCategory={() => setShowAuthModal(true)}
+            onDeleteCategory={() => setShowAuthModal(true)}
+            readOnly
+          />
+          <div className="w-full max-w-4xl mx-auto p-4 flex flex-wrap gap-4">
+            <button
+              type="button"
+              onClick={() => setShowSearch(true)}
+              className="px-4 py-2 rounded-md text-white font-medium bg-blue-600 hover:bg-blue-700 transition-colors"
+            >
+              Search Images
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-2 rounded-md text-white font-medium bg-purple-600 hover:bg-purple-700 transition-colors"
+            >
+              Shuffle Images
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-2 rounded-md text-white font-medium bg-gray-600 hover:bg-gray-700 transition-colors"
+            >
+              Reorder Images
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDuplicatesOnly((prev) => !prev)}
+              className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${showDuplicatesOnly
+                ? 'bg-amber-600 hover:bg-amber-700'
+                : 'bg-amber-500 hover:bg-amber-600'
+                }`}
+            >
+              {showDuplicatesOnly ? 'Show All Images' : 'Show Duplicates'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowUntitledOnly((prev) => !prev)}
+              className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${showUntitledOnly
+                ? 'bg-slate-700 hover:bg-slate-800'
+                : 'bg-slate-500 hover:bg-slate-600'
+                }`}
+            >
+              {showUntitledOnly ? 'Show All' : 'Show Untitled'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-2 rounded-md text-white font-medium bg-red-600 hover:bg-red-700 transition-colors"
+            >
+              Select
+            </button>
+          </div>
+          <Gallery
+            bookmarksFromApp={previewBookmarks}
+            loadingFromApp={false}
+            gridResetToken={0}
+            onImageClick={handleImageClick}
+            onAddBookmark={() => {}}
+            selectedCategories={selectedCategories}
+            selectMode={false}
+            setSelectMode={() => {}}
+            showSearch={showSearch}
+            setShowSearch={setShowSearch}
+            showDuplicatesOnly={showDuplicatesOnly}
+            showUntitledOnly={showUntitledOnly}
+            readOnly
+          />
+        </main>
+        {lightboxIndex !== null && (
+          <Lightbox
+            bookmarks={lightboxBookmarks}
+            currentIndex={lightboxIndex}
+            onClose={handleCloseLightbox}
+            onNext={handleNextImage}
+            onPrev={handlePrevImage}
+            overlayOpacity={lightboxOverlayOpacity}
+            onOverlayOpacityChange={setLightboxOverlayOpacity}
+          />
+        )}
+        <ScrollToTopButton />
+        <ScrollToBottomButton />
         {showAuthModal && <AuthScreen displayMode="modal" onClose={() => setShowAuthModal(false)} />}
       </div>
     );

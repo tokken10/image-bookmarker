@@ -81,6 +81,7 @@ interface GalleryProps {
   setShowSearch: Dispatch<SetStateAction<boolean>>;
   showDuplicatesOnly: boolean;
   showUntitledOnly: boolean;
+  readOnly?: boolean;
 }
 
 export default function Gallery({
@@ -96,6 +97,7 @@ export default function Gallery({
   setShowSearch,
   showDuplicatesOnly,
   showUntitledOnly,
+  readOnly = false,
 }: GalleryProps) {
   const PAGINATION_STATE_KEY = 'imageBookmarks:paginationState:v1';
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
@@ -213,6 +215,10 @@ export default function Gallery({
   }, [bookmarks]);
 
   const handleRemove = async (e: React.MouseEvent, id: string) => {
+    if (readOnly) {
+      return;
+    }
+
     e.stopPropagation();
     if (window.confirm('Are you sure you want to remove this bookmark?')) {
       const previousBookmarks = bookmarks;
@@ -255,6 +261,10 @@ export default function Gallery({
   }, [currentPage, isEditingGoToPage]);
 
   const handleDeleteSelected = async () => {
+    if (readOnly) {
+      return;
+    }
+
     if (selectedIds.length === 0) return;
     if (
       window.confirm(
@@ -280,6 +290,10 @@ export default function Gallery({
   const handleBulkEditSave = async (
     updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>
   ) => {
+    if (readOnly) {
+      return;
+    }
+
     if (selectedIds.length === 0) return;
     if (!('title' in updates) && !('categories' in updates)) return;
 
@@ -324,22 +338,34 @@ export default function Gallery({
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    if (readOnly) {
+      return;
+    }
     e.preventDefault();
   };
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>) => {
+    if (readOnly) {
+      return;
+    }
     e.preventDefault();
     setIsDragging(true);
     setDropError(null);
   };
 
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    if (readOnly) {
+      return;
+    }
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsDragging(false);
     }
   };
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    if (readOnly) {
+      return;
+    }
     e.preventDefault();
     setIsDragging(false);
     setDropError(null);
@@ -747,13 +773,13 @@ export default function Gallery({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {isDragging && (
+      {!readOnly && isDragging && (
         <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 border-4 border-dashed border-blue-500 flex items-center justify-center text-gray-700 dark:text-gray-300 z-20">
           Drop images, GIFs, or videos here
         </div>
       )}
 
-      {dropError && (
+      {!readOnly && dropError && (
         <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200">
           {dropError}
         </div>
@@ -823,7 +849,7 @@ export default function Gallery({
             </div>
           )}
 
-          {selectMode && (
+          {selectMode && !readOnly && (
             <div className="sticky top-0 z-30 mb-4 flex flex-wrap gap-2 rounded-md border border-gray-200 bg-white/95 p-2 shadow-sm backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
               <button
                 type="button"
@@ -1097,39 +1123,43 @@ export default function Gallery({
                         </svg>
                       </button>
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingBookmark(bookmark);
-                          setInfoVisibleId(null);
-                        }}
-                        className={`absolute top-2 right-10 p-1.5 bg-blue-500 text-white rounded-full transition-opacity z-20 hover:bg-blue-600 ${infoVisibleId === bookmark.id
-                          ? 'opacity-100'
-                          : 'opacity-0 pointer-events-none'
-                          }`}
-                        aria-label="Edit bookmark"
-                        title="Edit bookmark"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M16.768 3.768a2 2 0 112.828 2.828L7 19.5 3 21l1.5-4L16.768 3.768z" />
-                        </svg>
-                      </button>
+                      {!readOnly && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingBookmark(bookmark);
+                              setInfoVisibleId(null);
+                            }}
+                            className={`absolute top-2 right-10 p-1.5 bg-blue-500 text-white rounded-full transition-opacity z-20 hover:bg-blue-600 ${infoVisibleId === bookmark.id
+                              ? 'opacity-100'
+                              : 'opacity-0 pointer-events-none'
+                              }`}
+                            aria-label="Edit bookmark"
+                            title="Edit bookmark"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M16.768 3.768a2 2 0 112.828 2.828L7 19.5 3 21l1.5-4L16.768 3.768z" />
+                            </svg>
+                          </button>
 
-                      <button
-                        onClick={(e) => {
-                          void handleRemove(e, bookmark.id);
-                        }}
-                        className={`absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full transition-opacity z-20 hover:bg-red-600 ${infoVisibleId === bookmark.id
-                          ? 'opacity-100'
-                          : 'opacity-0 pointer-events-none'
-                          }`}
-                        aria-label="Remove bookmark"
-                        title="Remove bookmark"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                          <button
+                            onClick={(e) => {
+                              void handleRemove(e, bookmark.id);
+                            }}
+                            className={`absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full transition-opacity z-20 hover:bg-red-600 ${infoVisibleId === bookmark.id
+                              ? 'opacity-100'
+                              : 'opacity-0 pointer-events-none'
+                              }`}
+                            aria-label="Remove bookmark"
+                            title="Remove bookmark"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -1141,7 +1171,7 @@ export default function Gallery({
 
       <PaginationControls className="mt-6 sm:mt-8" />
 
-      {editingBookmark && (
+      {!readOnly && editingBookmark && (
         <EditBookmarkModal
           bookmark={editingBookmark}
           allCategories={allCategories}
@@ -1189,7 +1219,7 @@ export default function Gallery({
           }}
         />
       )}
-      {bulkEditing && (
+      {!readOnly && bulkEditing && (
         <BulkEditModal
           selectedCount={selectedIds.length}
           allCategories={allCategories}
