@@ -17,6 +17,7 @@ import { buildBookmarksCsv, parseBookmarksCsv } from './utils/csv';
 import { useAuth } from './auth/useAuth';
 import Header from './components/Header';
 import AuthScreen from './components/AuthScreen';
+import SampleGallery from './components/SampleGallery';
 import InputBar from './components/InputBar';
 import Gallery from './components/Gallery';
 import Lightbox from './components/Lightbox';
@@ -45,6 +46,7 @@ export default function App() {
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [csvStatus, setCsvStatus] = useState<string | null>(null);
   const [csvError, setCsvError] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hasLoadedBookmarksRef = useRef(false);
 
@@ -435,7 +437,17 @@ export default function App() {
     );
   }
 
-  if (!isConfigured || !user) {
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+        <Header onLogIn={() => setShowAuthModal(true)} />
+        <SampleGallery />
+        {showAuthModal && <AuthScreen displayMode="modal" onClose={() => setShowAuthModal(false)} />}
+      </div>
+    );
+  }
+
+  if (!isConfigured) {
     return <AuthScreen />;
   }
 

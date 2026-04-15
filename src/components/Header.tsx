@@ -4,9 +4,10 @@ import ThemeToggle from './ThemeToggle';
 interface HeaderProps {
   userEmail?: string;
   onSignOut?: () => Promise<void>;
+  onLogIn?: () => void;
 }
 
-export default function Header({ userEmail, onSignOut }: HeaderProps) {
+export default function Header({ userEmail, onSignOut, onLogIn }: HeaderProps) {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
@@ -41,6 +42,15 @@ export default function Header({ userEmail, onSignOut }: HeaderProps) {
               disabled={isSigningOut}
             >
               {isSigningOut ? 'Signing out...' : 'Sign out'}
+            </button>
+          )}
+          {!onSignOut && onLogIn && (
+            <button
+              type="button"
+              onClick={onLogIn}
+              className="rounded-md bg-blue-600 hover:bg-blue-700 px-3 py-1 text-xs font-medium text-white"
+            >
+              Log in
             </button>
           )}
           <ThemeToggle />
