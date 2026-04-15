@@ -18,6 +18,7 @@ import { defaultImages } from './data/defaultImages';
 import { useAuth } from './auth/useAuth';
 import Header from './components/Header';
 import AuthScreen from './components/AuthScreen';
+import SampleGallery from './components/SampleGallery';
 import InputBar from './components/InputBar';
 import Gallery from './components/Gallery';
 import Lightbox from './components/Lightbox';
