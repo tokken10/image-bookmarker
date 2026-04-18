@@ -37,6 +37,7 @@ export default function App() {
   const [lightboxBookmarks, setLightboxBookmarks] = useState<ImageBookmark[]>([]);
   const [lightboxOverlayOpacity, setLightboxOverlayOpacity] = useState(0.9);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
   const [showInputBar, setShowInputBar] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
@@ -269,6 +270,10 @@ export default function App() {
       const next = prev.filter((category) => categories.includes(category));
       return next.length === prev.length ? prev : next;
     });
+    setExcludedCategories((prev) => {
+      const next = prev.filter((category) => categories.includes(category));
+      return next.length === prev.length ? prev : next;
+    });
   }, [categories]);
 
   const handleAddCategory = async () => {
@@ -312,6 +317,7 @@ export default function App() {
       const updatedBookmarks = await removeCategoryFromBookmarks(category);
       setBookmarks(updatedBookmarks);
       setSelectedCategories((prev) => prev.filter((item) => item !== category));
+      setExcludedCategories((prev) => prev.filter((item) => item !== category));
       setRefreshTrigger((prev) => prev + 1);
     } catch (error) {
       console.error('Failed to delete category from bookmarks:', error);
@@ -488,6 +494,7 @@ export default function App() {
           <CategorySelector
             categories={Array.from(new Set(previewBookmarks.flatMap((bookmark) => bookmark.categories ?? [])))}
             selected={selectedCategories}
+            excluded={excludedCategories}
             onToggle={(category) => {
               setSelectedCategories((prev) =>
                 prev.includes(category)
@@ -495,7 +502,15 @@ export default function App() {
                   : [...prev, category]
               );
             }}
+            onToggleExcluded={(category) => {
+              setExcludedCategories((prev) =>
+                prev.includes(category)
+                  ? prev.filter((item) => item !== category)
+                  : [...prev, category]
+              );
+            }}
             onClear={() => setSelectedCategories([])}
+            onClearExcluded={() => setExcludedCategories([])}
             onAddCategory={() => setShowAuthModal(true)}
             onDeleteCategory={() => setShowAuthModal(true)}
             readOnly
@@ -557,6 +572,7 @@ export default function App() {
             onImageClick={handleImageClick}
             onAddBookmark={() => {}}
             selectedCategories={selectedCategories}
+            excludedCategories={excludedCategories}
             selectMode={false}
             setSelectMode={() => {}}
             showSearch={showSearch}
@@ -657,6 +673,7 @@ export default function App() {
             <CategorySelector
               categories={categories}
               selected={selectedCategories}
+              excluded={excludedCategories}
               onToggle={(category) => {
                 setSelectedCategories((prev) =>
                   prev.includes(category)
@@ -664,7 +681,15 @@ export default function App() {
                     : [...prev, category]
                 );
               }}
+              onToggleExcluded={(category) => {
+                setExcludedCategories((prev) =>
+                  prev.includes(category)
+                    ? prev.filter((item) => item !== category)
+                    : [...prev, category]
+                );
+              }}
               onClear={() => setSelectedCategories([])}
+              onClearExcluded={() => setExcludedCategories([])}
               onAddCategory={() => void handleAddCategory()}
               onDeleteCategory={(category) => {
                 void handleDeleteCategory(category);
@@ -731,6 +756,7 @@ export default function App() {
           onImageClick={handleImageClick}
           onAddBookmark={handleAddBookmark}
           selectedCategories={selectedCategories}
+          excludedCategories={excludedCategories}
           selectMode={selectMode}
           setSelectMode={setSelectMode}
           showSearch={showSearch}

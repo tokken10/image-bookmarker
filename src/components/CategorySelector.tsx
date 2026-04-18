@@ -3,8 +3,11 @@ import { useState } from 'react';
 interface CategorySelectorProps {
   categories: string[];
   selected: string[];
+  excluded: string[];
   onToggle: (category: string) => void;
+  onToggleExcluded: (category: string) => void;
   onClear: () => void;
+  onClearExcluded: () => void;
   onAddCategory: () => void;
   onDeleteCategory: (category: string) => void;
   readOnly?: boolean;
@@ -13,8 +16,11 @@ interface CategorySelectorProps {
 export default function CategorySelector({
   categories,
   selected,
+  excluded,
   onToggle,
+  onToggleExcluded,
   onClear,
+  onClearExcluded,
   onAddCategory,
   onDeleteCategory,
   readOnly = false,
@@ -99,6 +105,39 @@ export default function CategorySelector({
             </div>
           );
         })}
+      </div>
+      <div className="mt-3">
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          Exclude categories
+        </p>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <button
+            type="button"
+            onClick={onClearExcluded}
+            className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 ${excluded.length === 0
+              ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+              }`}
+          >
+            Hide none
+          </button>
+          {categories.map((cat) => {
+            const isExcluded = excluded.includes(cat);
+            return (
+              <button
+                key={`excluded-${cat}`}
+                type="button"
+                onClick={() => onToggleExcluded(cat)}
+                className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 ${isExcluded
+                  ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+                  }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
