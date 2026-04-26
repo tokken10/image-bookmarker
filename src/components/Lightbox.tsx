@@ -336,6 +336,26 @@ export default function Lightbox({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (title) {
+                        window.open(
+                          `https://www.google.com/search?q=${encodeURIComponent(title)}`,
+                          '_blank',
+                          'noopener,noreferrer'
+                        );
+                      }
+                    }}
+                    className="p-1.5 bg-black/50 text-white hover:bg-black/70 rounded-full"
+                    aria-label="Search title on Google"
+                    title="Search title on Google"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <circle cx="11" cy="11" r="8" strokeWidth={2} />
+                      <path strokeLinecap="round" strokeWidth={2} d="M21 21l-4.35-4.35" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (title && navigator?.clipboard?.writeText) {
                         navigator.clipboard.writeText(title);
                       }
