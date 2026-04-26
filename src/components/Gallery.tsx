@@ -75,6 +75,7 @@ interface GalleryProps {
   onImageClick: (index: number, items: ImageBookmark[]) => void;
   onAddBookmark: () => void;
   selectedCategories: string[];
+  excludedCategories: string[];
   selectMode: boolean;
   setSelectMode: Dispatch<SetStateAction<boolean>>;
   showSearch: boolean;
@@ -91,6 +92,7 @@ export default function Gallery({
   onImageClick,
   onAddBookmark,
   selectedCategories,
+  excludedCategories,
   selectMode,
   setSelectMode,
   showSearch,
@@ -125,8 +127,8 @@ export default function Gallery({
 
   const paginationKey = useMemo(() => {
     const normalizedSearch = debouncedSearch.trim().toLowerCase();
-    return `${selectedCategories.join(',')}::${normalizedSearch}::${searchFrom}::${searchTo}::${showDuplicatesOnly ? 'dupes' : 'all'}::${showUntitledOnly ? 'only-untitled' : 'all-titles'}`;
-  }, [selectedCategories, debouncedSearch, searchFrom, searchTo, showDuplicatesOnly, showUntitledOnly]);
+    return `${selectedCategories.join(',')}::${excludedCategories.join(',')}::${normalizedSearch}::${searchFrom}::${searchTo}::${showDuplicatesOnly ? 'dupes' : 'all'}::${showUntitledOnly ? 'only-untitled' : 'all-titles'}`;
+  }, [selectedCategories, excludedCategories, debouncedSearch, searchFrom, searchTo, showDuplicatesOnly, showUntitledOnly]);
 
   useEffect(() => {
     try {
@@ -500,12 +502,20 @@ export default function Gallery({
   }, [bookmarks]);
 
   const filteredByCategory = useMemo(() => (
-    selectedCategories.length === 0
-      ? bookmarks
-      : bookmarks.filter((bookmark) =>
-        selectedCategories.every((category) => bookmark.categories?.includes(category))
-      )
-  ), [bookmarks, selectedCategories]);
+    bookmarks.filter((bookmark) => {
+      const matchesIncluded = selectedCategories.length === 0
+        || selectedCategories.every((category) => bookmark.categories?.includes(category));
+      if (!matchesIncluded) {
+        return false;
+      }
+
+      if (excludedCategories.length === 0) {
+        return true;
+      }
+
+      return !excludedCategories.some((category) => bookmark.categories?.includes(category));
+    })
+  ), [bookmarks, selectedCategories, excludedCategories]);
 
   const filteredBookmarks = useMemo(() => (
     showDuplicatesOnly
