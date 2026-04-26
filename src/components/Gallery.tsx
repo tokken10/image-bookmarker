@@ -1019,6 +1019,31 @@ export default function Gallery({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                const titleQuery = bookmark.title || 'Untitled';
+                                window.open(
+                                  `https://www.google.com/search?q=${encodeURIComponent(titleQuery)}`,
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                );
+                              }}
+                              className="ml-2 p-1 hover:text-blue-300"
+                              aria-label="Search title on Google"
+                              title="Search title on Google"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <circle cx="11" cy="11" r="8" strokeWidth={2} />
+                                <path strokeWidth={2} strokeLinecap="round" d="M21 21l-4.35-4.35" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 void navigator.clipboard.writeText(
                                   bookmark.title || 'Untitled'
                                 );
