@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface CategorySelectorProps {
   categories: string[];
@@ -26,13 +26,29 @@ export default function CategorySelector({
   readOnly = false,
 }: CategorySelectorProps) {
   const [isManageMode, setIsManageMode] = useState(false);
+  const [showExcludeFilters, setShowExcludeFilters] = useState(false);
+
+  useEffect(() => {
+    if (excluded.length > 0) {
+      setShowExcludeFilters(true);
+    }
+  }, [excluded]);
 
   return (
     <div className="w-full max-w-4xl mx-auto p-4">
       <div className="flex items-center justify-between mb-2 gap-2">
         <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Filter by categories</p>
-        {!readOnly && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowExcludeFilters((prev) => !prev)}
+            className="rounded-full border border-red-500 px-3 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 dark:border-red-400 dark:text-red-300 dark:hover:bg-gray-800"
+            aria-pressed={showExcludeFilters}
+          >
+            {showExcludeFilters ? 'Hide Exclude' : 'Exclude'}
+          </button>
+          {!readOnly && (
+            <>
             <button
               type="button"
               onClick={() => setIsManageMode((prev) => !prev)}
@@ -51,8 +67,9 @@ export default function CategorySelector({
                 +
               </span>
             </button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         <button
@@ -106,39 +123,41 @@ export default function CategorySelector({
           );
         })}
       </div>
-      <div className="mt-3">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-          Exclude categories
-        </p>
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          <button
-            type="button"
-            onClick={onClearExcluded}
-            className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 ${excluded.length === 0
-              ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-              }`}
-          >
-            Hide none
-          </button>
-          {categories.map((cat) => {
-            const isExcluded = excluded.includes(cat);
-            return (
-              <button
-                key={`excluded-${cat}`}
-                type="button"
-                onClick={() => onToggleExcluded(cat)}
-                className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 ${isExcluded
-                  ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-                  }`}
-              >
-                {cat}
-              </button>
-            );
-          })}
+      {showExcludeFilters && (
+        <div className="mt-3">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            Exclude categories
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            <button
+              type="button"
+              onClick={onClearExcluded}
+              className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 ${excluded.length === 0
+                ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+                }`}
+            >
+              Hide none
+            </button>
+            {categories.map((cat) => {
+              const isExcluded = excluded.includes(cat);
+              return (
+                <button
+                  key={`excluded-${cat}`}
+                  type="button"
+                  onClick={() => onToggleExcluded(cat)}
+                  className={`inline-flex flex-shrink-0 items-center whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium shadow-sm transition-all duration-200 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1 ${isExcluded
+                    ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
