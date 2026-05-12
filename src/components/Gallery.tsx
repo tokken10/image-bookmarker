@@ -342,7 +342,8 @@ export default function Gallery({
   };
 
   const handleBulkEditSave = async (
-    updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>
+    updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>,
+    options?: { categoryMode?: 'replace' | 'add' }
   ) => {
     if (readOnly) {
       return;
@@ -358,9 +359,23 @@ export default function Gallery({
         return bookmark;
       }
 
-      const nextCategories = 'categories' in updates
-        ? updates.categories?.map((category) => category.trim()).filter(Boolean)
-        : bookmark.categories;
+      const nextCategories = (() => {
+        if (!('categories' in updates)) {
+          return bookmark.categories;
+        }
+
+        const normalizedUpdateCategories = updates.categories
+          ?.map((category) => category.trim())
+          .filter(Boolean);
+
+        if (options?.categoryMode === 'add') {
+          return Array.from(
+            new Set([...(bookmark.categories ?? []), ...(normalizedUpdateCategories ?? [])])
+          );
+        }
+
+        return normalizedUpdateCategories;
+      })();
       const nextTitle = 'title' in updates
         ? (updates.title?.trim() || undefined)
         : bookmark.title;
@@ -382,7 +397,7 @@ export default function Gallery({
     setBulkEditing(false);
 
     try {
-      const updatedBookmarks = await updateBookmarksBulk(selectedIds, updates);
+      const updatedBookmarks = await updateBookmarksBulk(selectedIds, updates, options);
       setBookmarks(updatedBookmarks);
       onAddBookmark();
     } catch (error) {
