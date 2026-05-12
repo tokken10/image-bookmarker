@@ -68,6 +68,58 @@ type ItemsPerPageOption = (typeof ITEMS_PER_PAGE_OPTIONS)[number];
 const DEFAULT_ITEMS_PER_PAGE: ItemsPerPageOption = 24;
 const ITEMS_PER_PAGE_STORAGE_KEY = 'imageBookmarks:itemsPerPage:v1';
 
+function BookmarkUrlLink({ url }: { url: string }) {
+  const linkRef = useRef<HTMLAnchorElement | null>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+
+  const updateOverflowState = useCallback(() => {
+    const linkElement = linkRef.current;
+    if (!linkElement) {
+      return;
+    }
+
+    setIsOverflowing(linkElement.scrollWidth > linkElement.clientWidth);
+  }, []);
+
+  useEffect(() => {
+    updateOverflowState();
+
+    const linkElement = linkRef.current;
+    if (!linkElement) {
+      return;
+    }
+
+    const resizeObserver =
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateOverflowState);
+
+    resizeObserver?.observe(linkElement);
+    window.addEventListener('resize', updateOverflowState);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateOverflowState);
+    };
+  }, [updateOverflowState, url]);
+
+  return (
+    <a
+      ref={linkRef}
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={url}
+      className="relative block min-w-0 flex-1 max-w-[75%] overflow-hidden whitespace-nowrap pr-3 text-xs text-blue-300 hover:underline"
+    >
+      <span className="block overflow-hidden whitespace-nowrap">{url}</span>
+      {isOverflowing && (
+        <span className="absolute right-0 top-0 bg-black/80 pl-0.5" aria-hidden="true">
+          ..
+        </span>
+      )}
+    </a>
+  );
+}
+
 interface GalleryProps {
   bookmarksFromApp: ImageBookmark[];
   loadingFromApp: boolean;
@@ -1094,16 +1146,7 @@ export default function Gallery({
                             </div>
                           )}
                           <div className="flex items-start mt-1">
-                            <a
-                              href={bookmark.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-300 hover:underline flex-1 max-w-[75%] break-all"
-
-
-                            >
-                              {bookmark.url}
-                            </a>
+                            <BookmarkUrlLink url={bookmark.url} />
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
