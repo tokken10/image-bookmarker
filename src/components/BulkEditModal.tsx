@@ -5,7 +5,10 @@ interface BulkEditModalProps {
   selectedCount: number;
   allCategories: string[];
   onClose: () => void;
-  onSave: (updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>) => void;
+  onSave: (
+    updates: Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>,
+    options?: { categoryMode?: 'replace' | 'add' }
+  ) => void;
 }
 
 export default function BulkEditModal({
@@ -19,6 +22,7 @@ export default function BulkEditModal({
   const [newCategory, setNewCategory] = useState('');
   const [applyTitle, setApplyTitle] = useState(false);
   const [applyCategories, setApplyCategories] = useState(false);
+  const [categoryMode, setCategoryMode] = useState<'add' | 'replace'>('add');
 
   const toggleCategory = (cat: string) => {
     setCategories((prev) => (prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]));
@@ -43,10 +47,11 @@ export default function BulkEditModal({
       updates.categories = categories.length > 0 ? categories : undefined;
     }
 
-    onSave(updates);
+    onSave(updates, { categoryMode });
   };
 
-  const isSaveDisabled = !applyTitle && !applyCategories;
+  const isSaveDisabled =
+    !applyTitle && (!applyCategories || (categoryMode === 'add' && categories.length === 0));
 
   return (
     <div
@@ -62,7 +67,7 @@ export default function BulkEditModal({
       >
         <h2 className="text-lg font-medium mb-2">Edit {selectedCount} selected</h2>
         <p className="text-sm text-gray-300 mb-4">
-          Apply the same title or categories to all selected bookmarks.
+          Apply the same title, replace categories, or add categories to all selected bookmarks.
         </p>
         <div className="mb-4">
           <label className="flex items-center gap-2 mb-1 text-sm">
@@ -91,6 +96,33 @@ export default function BulkEditModal({
             />
             Apply categories
           </label>
+          <fieldset className={`mb-3 ${applyCategories ? '' : 'opacity-50'}`}>
+            <legend className="sr-only">Category update mode</legend>
+            <div className="flex flex-col gap-2 text-sm sm:flex-row sm:gap-4">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="bulk-category-mode"
+                  value="add"
+                  checked={categoryMode === 'add'}
+                  onChange={() => setCategoryMode('add')}
+                  disabled={!applyCategories}
+                />
+                Add to existing categories
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="bulk-category-mode"
+                  value="replace"
+                  checked={categoryMode === 'replace'}
+                  onChange={() => setCategoryMode('replace')}
+                  disabled={!applyCategories}
+                />
+                Replace categories
+              </label>
+            </div>
+          </fieldset>
           <div className={`flex flex-wrap gap-2 mb-2 ${applyCategories ? '' : 'opacity-50'}`}>
             {[...new Set([...allCategories, ...categories])].map((cat) => (
               <label key={cat} className="inline-flex items-center">

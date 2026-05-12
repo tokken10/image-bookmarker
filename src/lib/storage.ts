@@ -42,6 +42,9 @@ type CustomCategoryRow = {
 
 type BookmarkCreateInput = Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>;
 type BookmarkUpdateInput = Partial<Omit<ImageBookmark, 'id' | 'createdAt' | 'searchTokens'>>;
+type BulkBookmarkUpdateOptions = {
+  categoryMode?: 'replace' | 'add';
+};
 
 function assertSupabaseConfigured(): void {
   if (!isSupabaseConfigured) {
@@ -629,7 +632,8 @@ export async function updateBookmark(
 
 export async function updateBookmarksBulk(
   ids: string[],
-  updates: BookmarkUpdateInput
+  updates: BookmarkUpdateInput,
+  options: BulkBookmarkUpdateOptions = {}
 ): Promise<ImageBookmark[]> {
   const userId = await requireAuthenticatedUserId();
   if (ids.length === 0) {
@@ -654,6 +658,7 @@ export async function updateBookmarksBulk(
   const normalizedTitle = 'title' in updates ? normalizeOptionalText(updates.title) : undefined;
   const normalizedCategories =
     'categories' in updates ? normalizeCategoryList(updates.categories) : undefined;
+  const categoryMode = options.categoryMode ?? 'replace';
 
   const rowsToUpsert: BookmarkRow[] = rows.map((row) => {
     const current = rowToBookmark(row);
@@ -664,9 +669,16 @@ export async function updateBookmarksBulk(
       title: 'title' in updates ? normalizedTitle : current.title,
       categories:
         'categories' in updates
-          ? normalizedCategories && normalizedCategories.length > 0
-            ? normalizedCategories
-            : undefined
+          ? categoryMode === 'add'
+            ? (() => {
+                const merged = Array.from(
+                  new Set([...(current.categories ?? []), ...(normalizedCategories ?? [])])
+                );
+                return merged.length > 0 ? merged : undefined;
+              })()
+            : normalizedCategories && normalizedCategories.length > 0
+              ? normalizedCategories
+              : undefined
           : current.categories,
     };
 
