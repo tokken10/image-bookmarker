@@ -1086,6 +1086,31 @@ export default function Gallery({
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                const titleQuery = bookmark.title || '';
+                                setSearch(titleQuery);
+                                if (!showSearch) {
+                                  setShowSearch(true);
+                                }
+                                setInfoVisibleId(null);
+                              }}
+                              className="ml-2 p-1 hover:text-blue-300"
+                              aria-label="Search title in app"
+                              title="Search title in app"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <circle cx="11" cy="11" r="8" strokeWidth={2} />
+                                <path strokeWidth={2} strokeLinecap="round" d="M21 21l-4.35-4.35" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 const titleQuery = bookmark.title || 'Untitled';
                                 window.open(
                                   `https://www.google.com/search?q=${encodeURIComponent(titleQuery)}`,
@@ -1104,8 +1129,9 @@ export default function Gallery({
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
                               >
-                                <circle cx="11" cy="11" r="8" strokeWidth={2} />
-                                <path strokeWidth={2} strokeLinecap="round" d="M21 21l-4.35-4.35" />
+                                <circle cx="12" cy="12" r="10" strokeWidth={2} />
+                                <path strokeWidth={2} strokeLinecap="round" d="M2 12h20" />
+                                <path strokeWidth={2} d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z" />
                               </svg>
                             </button>
                             <button
