@@ -135,6 +135,7 @@ interface GalleryProps {
   showDuplicatesOnly: boolean;
   showUntitledOnly: boolean;
   readOnly?: boolean;
+  onScrollToTop?: () => void;
 }
 
 export default function Gallery({
@@ -152,6 +153,7 @@ export default function Gallery({
   showDuplicatesOnly,
   showUntitledOnly,
   readOnly = false,
+  onScrollToTop,
 }: GalleryProps) {
   const PAGINATION_STATE_KEY = 'imageBookmarks:paginationState:v1';
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
@@ -1094,7 +1096,7 @@ export default function Gallery({
                                 }
                                 setInfoVisibleId(null);
                                 setTimeout(() => {
-                                  searchBarRef.current?.scrollIntoView({ block: 'start' });
+                                  onScrollToTop?.();
                                 }, 100);
                               }}
                               className="ml-2 p-1 hover:text-blue-300"

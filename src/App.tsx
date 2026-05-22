@@ -50,6 +50,7 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hasLoadedBookmarksRef = useRef(false);
+  const categorySectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!userId) {
@@ -669,7 +670,7 @@ export default function App() {
           </div>
         )}
         {bookmarks.length > 0 && (
-          <>
+          <div ref={categorySectionRef}>
             <CategorySelector
               categories={categories}
               selected={selectedCategories}
@@ -747,7 +748,7 @@ export default function App() {
                 </button>
               )}
             </div>
-          </>
+          </div>
         )}
         <Gallery
           bookmarksFromApp={bookmarks}
@@ -763,6 +764,9 @@ export default function App() {
           setShowSearch={setShowSearch}
           showDuplicatesOnly={showDuplicatesOnly}
           showUntitledOnly={showUntitledOnly}
+          onScrollToTop={() => {
+            categorySectionRef.current?.scrollIntoView({ block: 'start' });
+          }}
         />
       </main>
 
