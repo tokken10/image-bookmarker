@@ -172,6 +172,7 @@ export default function Gallery({
   );
   const lastSelectedIndexRef = useRef<number | null>(null);
   const listTopRef = useRef<HTMLDivElement | null>(null);
+  const searchBarRef = useRef<HTMLDivElement | null>(null);
   const previousPageRef = useRef<number | null>(null);
   const lastGridResetTokenRef = useRef(gridResetToken);
   const [goToPageValue, setGoToPageValue] = useState('');
@@ -866,7 +867,7 @@ export default function Gallery({
         <>
 
           {showSearch && (
-            <div className="mb-4">
+            <div ref={searchBarRef} className="mb-4">
               <div className="flex flex-col gap-3">
                 <div className="flex gap-2">
                   <input
@@ -1093,7 +1094,7 @@ export default function Gallery({
                                 }
                                 setInfoVisibleId(null);
                                 setTimeout(() => {
-                                  listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                  searchBarRef.current?.scrollIntoView({ block: 'start' });
                                 }, 100);
                               }}
                               className="ml-2 p-1 hover:text-blue-300"
