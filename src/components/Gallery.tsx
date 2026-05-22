@@ -1092,6 +1092,9 @@ export default function Gallery({
                                   setShowSearch(true);
                                 }
                                 setInfoVisibleId(null);
+                                setTimeout(() => {
+                                  listTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }, 100);
                               }}
                               className="ml-2 p-1 hover:text-blue-300"
                               aria-label="Search title in app"
