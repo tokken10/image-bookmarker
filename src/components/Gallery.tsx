@@ -136,6 +136,8 @@ interface GalleryProps {
   showUntitledOnly: boolean;
   readOnly?: boolean;
   onScrollToTop?: () => void;
+  searchQueryFromApp?: string;
+  searchQueryToken?: number;
 }
 
 export default function Gallery({
@@ -154,6 +156,8 @@ export default function Gallery({
   showUntitledOnly,
   readOnly = false,
   onScrollToTop,
+  searchQueryFromApp,
+  searchQueryToken,
 }: GalleryProps) {
   const PAGINATION_STATE_KEY = 'imageBookmarks:paginationState:v1';
   const [bookmarks, setBookmarks] = useState<ImageBookmark[]>([]);
@@ -215,6 +219,12 @@ export default function Gallery({
   useEffect(() => {
     setBookmarks(bookmarksFromApp);
   }, [bookmarksFromApp]);
+
+  useEffect(() => {
+    if (searchQueryToken && searchQueryFromApp !== undefined) {
+      setSearch(searchQueryFromApp);
+    }
+  }, [searchQueryToken, searchQueryFromApp]);
 
   useEffect(() => {
     if (gridResetToken > 0) {

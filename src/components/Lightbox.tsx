@@ -11,6 +11,7 @@ interface LightboxProps {
   onPrev: () => void;
   overlayOpacity: number;
   onOverlayOpacityChange: (value: number) => void;
+  onSearchInApp?: (query: string) => void;
 }
 
 export default function Lightbox({
@@ -21,6 +22,7 @@ export default function Lightbox({
   onPrev,
   overlayOpacity,
   onOverlayOpacityChange,
+  onSearchInApp,
 }: LightboxProps) {
   const currentBookmark = bookmarks[currentIndex];
   const isVideo = currentBookmark ? isVideoBookmark(currentBookmark) : false;
@@ -336,6 +338,22 @@ export default function Lightbox({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (title && onSearchInApp) {
+                        onSearchInApp(title);
+                      }
+                    }}
+                    className="p-1.5 bg-black/50 text-white hover:bg-black/70 rounded-full"
+                    aria-label="Search title in app"
+                    title="Search title in app"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <circle cx="11" cy="11" r="8" strokeWidth={2} />
+                      <path strokeLinecap="round" strokeWidth={2} d="M21 21l-4.35-4.35" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (title) {
                         window.open(
                           `https://www.google.com/search?q=${encodeURIComponent(title)}`,
@@ -349,8 +367,9 @@ export default function Lightbox({
                     title="Search title on Google"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <circle cx="11" cy="11" r="8" strokeWidth={2} />
-                      <path strokeLinecap="round" strokeWidth={2} d="M21 21l-4.35-4.35" />
+                      <circle cx="12" cy="12" r="10" strokeWidth={2} />
+                      <path strokeWidth={2} strokeLinecap="round" d="M2 12h20" />
+                      <path strokeWidth={2} d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z" />
                     </svg>
                   </button>
                   <button

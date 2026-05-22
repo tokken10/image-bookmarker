@@ -51,6 +51,8 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const hasLoadedBookmarksRef = useRef(false);
   const categorySectionRef = useRef<HTMLDivElement | null>(null);
+  const [searchQueryFromApp, setSearchQueryFromApp] = useState('');
+  const [searchQueryToken, setSearchQueryToken] = useState(0);
 
   useEffect(() => {
     if (!userId) {
@@ -337,6 +339,16 @@ export default function App() {
     document.body.style.overflow = 'auto';
   };
 
+  const handleSearchInApp = (query: string) => {
+    handleCloseLightbox();
+    setShowSearch(true);
+    setSearchQueryFromApp(query);
+    setSearchQueryToken((prev) => prev + 1);
+    setTimeout(() => {
+      categorySectionRef.current?.scrollIntoView({ block: 'start' });
+    }, 100);
+  };
+
   const handleNextImage = () => {
     if (lightboxIndex !== null && lightboxIndex < lightboxBookmarks.length - 1) {
       setLightboxIndex(lightboxIndex + 1);
@@ -581,6 +593,8 @@ export default function App() {
             showDuplicatesOnly={showDuplicatesOnly}
             showUntitledOnly={showUntitledOnly}
             readOnly
+            searchQueryFromApp={searchQueryFromApp}
+            searchQueryToken={searchQueryToken}
           />
         </main>
         {lightboxIndex !== null && (
@@ -592,6 +606,7 @@ export default function App() {
             onPrev={handlePrevImage}
             overlayOpacity={lightboxOverlayOpacity}
             onOverlayOpacityChange={setLightboxOverlayOpacity}
+            onSearchInApp={handleSearchInApp}
           />
         )}
         <ScrollToTopButton />
@@ -767,6 +782,8 @@ export default function App() {
           onScrollToTop={() => {
             categorySectionRef.current?.scrollIntoView({ block: 'start' });
           }}
+          searchQueryFromApp={searchQueryFromApp}
+          searchQueryToken={searchQueryToken}
         />
       </main>
 
@@ -779,6 +796,7 @@ export default function App() {
           onPrev={handlePrevImage}
           overlayOpacity={lightboxOverlayOpacity}
           onOverlayOpacityChange={setLightboxOverlayOpacity}
+          onSearchInApp={handleSearchInApp}
         />
       )}
       <ScrollToTopButton />
